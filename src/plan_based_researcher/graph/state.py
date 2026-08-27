@@ -58,3 +58,4 @@ class GraphState(TypedDict):
     outcome: Literal["pending", "refused", "done", "insufficient", "error"]
     gate: dict
     error_message: str
+    reuse_existing_papers: bool
