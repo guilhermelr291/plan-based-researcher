@@ -19,10 +19,11 @@ def _papers_blob(papers: object) -> str:
 
 
 class PlannerRunner:
-    def __init__(self) -> None:
-        self._llm = ChatOpenAI(model=REGISTRY["planner"].model).with_structured_output(
-            ResearchPlan
-        )
+    def __init__(self, api_key: str | None = None) -> None:
+        kwargs: dict = {"model": REGISTRY["planner"].model}
+        if api_key is not None:
+            kwargs["api_key"] = api_key
+        self._llm = ChatOpenAI(**kwargs).with_structured_output(ResearchPlan)
 
     async def run(self, state: dict) -> dict:
         query = state.get("query") or ""

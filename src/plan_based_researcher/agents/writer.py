@@ -103,10 +103,11 @@ def _user_prompt(state: GraphState, formatted_chunks: str) -> str:
 
 
 class WriterRunner:
-    def __init__(self) -> None:
-        self._llm = ChatOpenAI(model=REGISTRY["writer"].model).with_structured_output(
-            WriterOutput
-        )
+    def __init__(self, api_key: str | None = None) -> None:
+        kwargs: dict = {"model": REGISTRY["writer"].model}
+        if api_key is not None:
+            kwargs["api_key"] = api_key
+        self._llm = ChatOpenAI(**kwargs).with_structured_output(WriterOutput)
 
     async def run(self, state: GraphState) -> dict:
         chunks: list[EvidenceChunk] = list(state.get("evidence_chunks") or [])
