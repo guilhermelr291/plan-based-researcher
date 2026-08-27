@@ -1,0 +1,64 @@
+"""FastAPI process: compile the graph once, ping Postgres (PAT-07, PAT-12, THR-01)."""
+
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg.rows import dict_row
+from psycopg_pool import AsyncConnectionPool
+
+from plan_based_researcher.adapters.arxiv import ArxivPaperAdapter
+from plan_based_researcher.adapters.openai_embeddings import OpenAIEmbeddingAdapter
+from plan_based_researcher.agents.factory import AgentFactory
+from plan_based_researcher.api.routes import router
+from plan_based_researcher.config import Settings
+from plan_based_researcher.eval.strategies import ResearchEvalStrategy, WriterEvalStrategy
+from plan_based_researcher.graph.build import GraphDeps, build_graph
+from plan_based_researcher.repo.chunks import PgChunkRepository
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = Settings()
+    pool = AsyncConnectionPool(
+        conninfo=settings.database_url,
+        kwargs={"autocommit": True, "row_factory": dict_row},
+        open=False,
+    )
+    await pool.open()
+    checkpointer = AsyncPostgresSaver(pool)
+    await checkpointer.setup()
+    repo = PgChunkRepository(pool)
+    await repo.ensure_schema()
+    embeddings = OpenAIEmbeddingAdapter(api_key=settings.openai_api_key)
+    papers = ArxivPaperAdapter()
+    factory = AgentFactory(papers, repo, embeddings, api_key=settings.openai_api_key)
+    deps = GraphDeps(
+        factory=factory,
+        research_eval=ResearchEvalStrategy(),
+        writer_eval=WriterEvalStrategy(api_key=settings.openai_api_key),
+    )
+    app.state.settings = settings
+    app.state.pool = pool
+    app.state.graph = build_graph(deps, checkpointer=checkpointer)
+    yield
+    await pool.close()
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(lifespan=lifespan)
+    app.include_router(router)
+
+    @app.get("/health")
+    async def health():
+        pool = app.state.pool
+        async with pool.connection() as conn:
+            await conn.execute("SELECT 1")
+        return {"status": "ok"}
+
+    return app
+
+
+app = create_app()
