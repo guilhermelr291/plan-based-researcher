@@ -1,0 +1,20 @@
+services:
+  postgres:
+    # pgvector/pgvector:pg16 — PostgreSQL 16 with the pgvector extension
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: researcher
+      POSTGRES_PASSWORD: researcher
+      POSTGRES_DB: researcher
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U researcher -d researcher"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
