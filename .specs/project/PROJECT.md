@@ -1,46 +1,50 @@
 # Plan-Based Researcher
 
-**Vision:** A multi-agent AI researcher that plans first, then executes step by step. A planner agent produces the research plan; an orchestrator loop assigns each step, evaluates the result, and either retries with feedback or advances.
-**For:** General users who need structured research rather than a single-shot LLM answer.
-**Solves:** One-pass research is shallow, poorly sequenced, and hard to correct. A plan-based loop with evaluation at every step produces more reliable, iterative results.
+**Vision:** A plan-based multi-agent researcher that answers student AI/ML questions using only arXiv papers, with per-step evaluation and grounded generation.
+**For:** Students who need didactic answers they can check against the paper passages that support each claim.
+**Solves:** One-shot LLM answers mix parametric memory and the open web, so claims are unverifiable. A gated plan → research → evaluate → write loop over arXiv, with citations tied to retrieved chunks, produces inspectable answers.
 
 ## Goals
 
-- Ship a FastAPI backend that runs the full pipeline: **plan → execute → analyze** for a user research query.
-- The orchestrator must evaluate every step and either send feedback for a retry or proceed to the next step.
-- A planner agent generates the plan; specialist agents execute assigned steps using OpenAI and Tavily.
+- Ship an async FastAPI SSE endpoint that runs Gate → Planner → Orchestrator loop → Researcher → Writer for a student query.
+- Ground every technical claim in arXiv chunks (`[n]` + `citations[]`); refuse out-of-domain questions; emit insufficient evidence instead of hallucinating.
+- Ship a Chainlit chat that streams research steps and opens citation excerpts in the side panel; resume the current chat via LangGraph `AsyncPostgresSaver`.
 
 ## Tech Stack
 
 **Core:**
 
-- Language: Python
-- API: FastAPI
+- Language: Python (>=3.12)
+- API: FastAPI (async, `StreamingResponse` SSE)
+- UI: Chainlit (host process; HTTP client of the API)
 - Agent orchestration: LangGraph
-- LLM / tools: LangChain, OpenAI, Tavily
+- Database: PostgreSQL + pgvector (Docker)
+- Checkpointer: LangGraph `AsyncPostgresSaver` (same Postgres)
 
-**Key dependencies:** LangChain, LangGraph, FastAPI, OpenAI SDK (via LangChain), Tavily search
+**Key dependencies:** LangChain, LangGraph, langchain-community arXiv tools (`ArxivRetriever` / `ArxivQueryRun`, `ArxivLoader`), `langchain_text_splitters`, OpenAI (`gpt-5.1`, `gpt-5-mini`, `text-embedding-3-small`), Chainlit, psycopg/pgvector
 
 ## Scope
 
 **v1 includes:**
 
-- Backend only (HTTP API)
-- Planner agent that generates a research plan from a user query
-- Orchestrator as a loop: assign step → execute → evaluate → retry with feedback **or** advance
-- Execute phase: agents complete assigned research steps with OpenAI + Tavily
-- Analyze phase: aggregate execution results into a final research output (format TBD)
+- Domain gate (AI/ML only) before planning
+- Planner + orchestrator evaluate/retry loop + arXiv researcher + grounded writer
+- pgvector paper/chunk store with lazy PDF ingest, unique `(arxiv_id, version)`
+- Single async `POST /research` SSE API and Chainlit UI
+- Thread state in Postgres for the current Chainlit chat (`thread_id`)
 
 **Explicitly out of scope:**
 
-- Frontend / UI
-- Auth, multi-user accounts, and billing
-- Persistent memory across research sessions
-- Mobile or desktop clients
+- Auth, multi-user accounts, billing, and a history product across anonymous browser sessions
+- Web search (Tavily or otherwise) and non-arXiv paper APIs
+- Dockerizing API/UI (Postgres only in Compose)
+- Hover-citation JSX, `answer_delta`, HITL plan approval
+- Native mobile/desktop clients
 
 ## Constraints
 
-- All project artifacts (code, docs, comments, API contracts, prompts) must be in **English**.
-- LLM provider: OpenAI.
-- Search: Tavily.
-- Analyze output shape is **not decided** — specify it before implementing the analyze step.
+- All project artifacts (code, docs, comments, API contracts, prompts) must be in **English**. Student-facing answer language follows the query language.
+- LLM and embeddings: OpenAI only.
+- Evidence: arXiv only; category allowlist `cs.AI`, `cs.LG`, `cs.CL`, `cs.CV`, `cs.NE`, `cs.RO`, `stat.ML`.
+- Caps: `max_steps=8`, `max_retries_per_step=2`, `max_papers=8`, timeout ~2 minutes.
+- Splitter: 500 / 100. Feature spec: `.specs/features/arxiv-grounded-research/spec.md`. Architecture: `.specs/features/arxiv-grounded-research/context.md`.

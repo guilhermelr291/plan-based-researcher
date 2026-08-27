@@ -1,97 +1,51 @@
 # Roadmap
 
-**Current Milestone:** Foundation
+**Current Milestone:** ArXiv-grounded research v1  
 **Status:** Planning
 
 ---
 
 ## Foundation
 
-**Goal:** Runnable FastAPI app with config for OpenAI and Tavily, ready for the agent graph.
-**Target:** App starts, health check works, secrets are loaded from environment.
+**Goal:** FastAPI app, env config (OpenAI + Postgres), health check, Dockerized Postgres/pgvector, checkpointer `setup()`.
+**Target:** App starts, DB reachable, checkpoint and vector tables exist.
 
 ### Features
 
 **API Skeleton** - PLANNED
 
 - FastAPI application and project layout
-- Environment-based config (OpenAI, Tavily)
+- Environment-based config (OpenAI, `DATABASE_URL`)
 - Health endpoint
+- Docker Compose: Postgres with pgvector only
 
 ---
 
-## Plan
+## ArXiv-grounded research
 
-**Goal:** A user query becomes a structured research plan produced by a planner agent.
-**Target:** Given a query, the API (or graph node) returns a plan with ordered steps.
-
-### Features
-
-**Planner Agent** - PLANNED
-
-- Accept a research query
-- Generate an ordered plan of research steps
-- Structured plan schema the orchestrator can consume
-
----
-
-## Execute
-
-**Goal:** The orchestrator loop runs each plan step, evaluates the result, and retries or advances.
-**Target:** A plan can be executed end-to-end with per-step evaluation and bounded retries.
+**Goal:** Students get didactic, cited AI/ML answers from arXiv only, with a visible plan-based loop.
+**Target:** Spec `.specs/features/arxiv-grounded-research/spec.md` verified end-to-end (API + Chainlit).
+**Spec:** Approved 2026-08-26. Design approved. Tasks: implementation only (automated tests deferred).
 
 ### Features
 
-**Orchestrator Loop** - PLANNED
+**ArXiv-Grounded Plan-Based Research** - PLANNED
 
-- Assign the current step to the appropriate agent
-- Evaluate the step result
-- On failure/quality miss: feedback + retry
-- On success: advance to the next step
-- Stop when the plan is complete or retry limit is reached
-
-**Research Execution** - PLANNED
-
-- Agents execute assigned steps using OpenAI
-- Web research via Tavily
-- Step outputs stored for later analysis
-
----
-
-## Analyze
-
-**Goal:** Turn executed step results into a final research response from the backend.
-**Target:** Pipeline returns a completed research result after analyze. Output format still TBD.
-
-### Features
-
-**Result Analysis** - PLANNED
-
-- Aggregate step outputs
-- Produce the final research result
-- Expose the result through the FastAPI API
-
----
-
-## End-to-End Research API
-
-**Goal:** One backend entry point runs plan → execute → analyze and returns the result.
-**Target:** A single research request completes the full pipeline.
-
-### Features
-
-**Research Endpoint** - PLANNED
-
-- Accept a research query
-- Run the LangGraph pipeline
-- Return plan, execution trace (as needed), and final analysis
+- Domain gate; planner; orchestrator eval/retry; arXiv researcher; grounded writer
+- SSE `POST /research` (`query`, `thread_id`)
+- pgvector lazy ingest `(arxiv_id, version)`
+- `AsyncPostgresSaver` thread state
+- Chainlit steps + side-panel citations
 
 ---
 
 ## Future Considerations
 
-- Frontend / UI
-- User accounts and history
-- Streaming progress of the orchestrator loop
-- Analyze output format (markdown report, JSON, citations — undecided)
-- Persistent session memory
+- Auth, multi-user accounts, billing
+- Thread TTL / delete and cross-session history UI
+- Hover/JSX citation tooltips
+- Writer `answer_delta` after eval pass
+- arXiv TeX/HTML parsers
+- Dockerize API and Chainlit
+- Global semantic search over the full ingested corpus
+- Human-in-the-loop plan approval
