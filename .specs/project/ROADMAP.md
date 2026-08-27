@@ -1,7 +1,7 @@
 # Roadmap
 
 **Current Milestone:** ArXiv-grounded research v1  
-**Status:** Planning
+**Status:** Implemented (manual verification remaining)
 
 ---
 
@@ -12,7 +12,7 @@
 
 ### Features
 
-**API Skeleton** - PLANNED
+**API Skeleton** - DONE
 
 - FastAPI application and project layout
 - Environment-based config (OpenAI, `DATABASE_URL`)
@@ -25,11 +25,11 @@
 
 **Goal:** Students get didactic, cited AI/ML answers from arXiv only, with a visible plan-based loop.
 **Target:** Spec `.specs/features/arxiv-grounded-research/spec.md` verified end-to-end (API + Chainlit).
-**Spec:** Approved 2026-08-26. Design approved. Tasks: implementation only (automated tests deferred).
+**Spec:** Approved 2026-08-26. Design approved. Tasks executed 2026-08-26 (automated tests deferred).
 
 ### Features
 
-**ArXiv-Grounded Plan-Based Research** - PLANNED
+**ArXiv-Grounded Plan-Based Research** - IMPLEMENTED
 
 - Domain gate; planner; orchestrator eval/retry; arXiv researcher; grounded writer
 - SSE `POST /research` (`query`, `thread_id`)

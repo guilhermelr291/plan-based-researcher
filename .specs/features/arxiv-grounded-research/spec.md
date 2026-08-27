@@ -175,30 +175,30 @@ Students asking AI/ML questions get fluent answers that mix parametric memory wi
 
 | Requirement ID | Story                     | Phase  | Status    |
 | -------------- | ------------------------- | ------ | --------- |
-| API-01         | P1: In-domain research    | Design | In Design |
-| SSE-01         | P1: In-domain research    | Design | In Design |
-| SSE-02         | P1: In-domain research    | Design | In Design |
-| GATE-01        | P1: Out-of-domain refusal | Design | In Design |
-| GATE-02        | P1: Out-of-domain refusal | Design | In Design |
-| PLAN-01        | P1: In-domain research    | Design | In Design |
-| ORCH-01        | P1: In-domain research    | Design | In Design |
-| ORCH-02        | P1: In-domain research    | Design | In Design |
-| ORCH-03        | P1: In-domain research    | Design | In Design |
-| ARX-01         | P1: In-domain research    | Design | In Design |
-| ARX-02         | P1: In-domain research    | Design | In Design |
-| ARX-03         | P2: Cache hit             | Design | In Design |
-| ARX-04         | P1: In-domain research    | Design | In Design |
-| EMB-01         | P1: In-domain research    | Design | In Design |
-| GROUND-01      | P1: In-domain research    | Design | In Design |
-| GROUND-02      | P1: In-domain research    | Design | In Design |
-| GROUND-03      | P1: In-domain research    | Design | In Design |
-| CAP-01         | P1: In-domain research    | Design | In Design |
-| THR-01         | P2: Follow-up             | Design | In Design |
-| THR-02         | P2: Follow-up             | Design | In Design |
-| UI-01          | P1: Chainlit chat         | Design | In Design |
-| UI-02          | P1: Chainlit chat         | Design | In Design |
-| UI-03          | P1: Chainlit chat         | Design | In Design |
-| RUN-01         | P1: Chainlit chat         | Design | In Design |
+| API-01         | P1: In-domain research    | Execute | Implemented |
+| SSE-01         | P1: In-domain research    | Execute | Implemented |
+| SSE-02         | P1: In-domain research    | Execute | Implemented |
+| GATE-01        | P1: Out-of-domain refusal | Execute | Implemented |
+| GATE-02        | P1: Out-of-domain refusal | Execute | Implemented |
+| PLAN-01        | P1: In-domain research    | Execute | Implemented |
+| ORCH-01        | P1: In-domain research    | Execute | Implemented |
+| ORCH-02        | P1: In-domain research    | Execute | Implemented |
+| ORCH-03        | P1: In-domain research    | Execute | Implemented |
+| ARX-01         | P1: In-domain research    | Execute | Implemented |
+| ARX-02         | P1: In-domain research    | Execute | Implemented |
+| ARX-03         | P2: Cache hit             | Execute | Implemented |
+| ARX-04         | P1: In-domain research    | Execute | Implemented |
+| EMB-01         | P1: In-domain research    | Execute | Implemented |
+| GROUND-01      | P1: In-domain research    | Execute | Implemented |
+| GROUND-02      | P1: In-domain research    | Execute | Implemented |
+| GROUND-03      | P1: In-domain research    | Execute | Implemented |
+| CAP-01         | P1: In-domain research    | Execute | Implemented |
+| THR-01         | P2: Follow-up             | Execute | Implemented |
+| THR-02         | P2: Follow-up             | Execute | Implemented |
+| UI-01          | P1: Chainlit chat         | Execute | Implemented |
+| UI-02          | P1: Chainlit chat         | Execute | Implemented |
+| UI-03          | P1: Chainlit chat         | Execute | Implemented |
+| RUN-01         | P1: Chainlit chat         | Execute | Implemented |
 
 
 **ID map (normative behavior):**

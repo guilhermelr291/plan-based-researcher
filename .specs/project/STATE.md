@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-08-26
-**Current Work:** ArXiv-grounded research — tasks.md without automated tests; pending user approval
+**Current Work:** ArXiv-grounded research v1 implemented (T1–T31). Manual SSE/Chainlit checks remain; automated tests still deferred.
 
 ---
 
@@ -87,7 +87,8 @@ None.
 
 ## Lessons Learned
 
-None yet.
+- `ChatOpenAI` validates `OPENAI_API_KEY` at construct time. Agent factory must pass `api_key` into Gate, Planner, and Writer runners; relying on env alone fails when Settings reads `.env` without exporting it.
+- Parallel `[P]` tasks cannot each `git commit` safely; implement in parallel, then serialize atomic commits on the orchestrator.
 
 ---
 
@@ -118,8 +119,9 @@ None yet.
 - [x] User approve `.specs/features/arxiv-grounded-research/spec.md` before Design
 - [x] User approve `.specs/features/arxiv-grounded-research/design.md` before Tasks
 - [x] Automated tests deferred (no pytest/Testcontainers in v1 tasks)
-- [ ] User approve `.specs/features/arxiv-grounded-research/tasks.md` before Execute
-- [ ] Remove Tavily from runtime dependencies when implementing Foundation (still in `pyproject.toml` from init)
+- [x] User approve `.specs/features/arxiv-grounded-research/tasks.md` before Execute
+- [x] Remove Tavily from runtime dependencies when implementing Foundation
+- [ ] Manual UAT: in-domain SSE, out-of-domain gate, Chainlit `[n]` side panel, follow-up reuse
 
 ---
 

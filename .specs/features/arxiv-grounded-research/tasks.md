@@ -1,7 +1,7 @@
 # ArXiv-Grounded Research Tasks
 
 **Design**: `.specs/features/arxiv-grounded-research/design.md`  
-**Status**: Draft (pending user approval)
+**Status**: Executed (2026-08-26)
 
 Automated tests (pytest, Testcontainers, e2e) are **out of scope for this task list**. Done-when is implementation complete vs the design. Spec “Independent Test” lines stay as later manual checks, not as Execute work.
 
@@ -75,8 +75,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Installable package layout (`src/plan_based_researcher`)
-- [ ] Design add-deps listed; Tavily gone
+- [x] Installable package layout (`src/plan_based_researcher`)
+- [x] Design add-deps listed; Tavily gone
 
 **Commit**: `chore(research): bootstrap package`
 
@@ -94,7 +94,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Defaults match design; readable from env
+- [x] Defaults match design; readable from env
 
 **Commit**: `feat(research): add settings`
 
@@ -112,8 +112,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Categories exactly `cs.AI`, `cs.LG`, `cs.CL`, `cs.CV`, `cs.NE`, `cs.RO`, `stat.ML`
-- [ ] Caps 8 / 2 / 8; historical bypasses recency
+- [x] Categories exactly `cs.AI`, `cs.LG`, `cs.CL`, `cs.CV`, `cs.NE`, `cs.RO`, `stat.ML`
+- [x] Caps 8 / 2 / 8; historical bypasses recency
 
 **Commit**: `feat(research): add research policy`
 
@@ -131,8 +131,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Image `pgvector/pgvector` (pg16 or documented tag), port 5432, volume
-- [ ] `.env.example` has `DATABASE_URL`, `OPENAI_API_KEY`, `API_PORT=8001`
+- [x] Image `pgvector/pgvector` (pg16 or documented tag), port 5432, volume
+- [x] `.env.example` has `DATABASE_URL`, `OPENAI_API_KEY`, `API_PORT=8001`
 
 **Commit**: `chore(research): add pgvector compose`
 
@@ -150,7 +150,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Duplicate keys merge; excess unique papers trimmed to `Policy.max_papers`
+- [x] Duplicate keys merge; excess unique papers trimmed to `Policy.max_papers`
 
 **Commit**: `feat(research): add graph state`
 
@@ -168,7 +168,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Only those three statuses exist on the type
+- [x] Only those three statuses exist on the type
 
 **Commit**: `feat(research): add eval result type`
 
@@ -186,8 +186,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Empty `thread_id` fails validation
-- [ ] `ResearchPlan.reuse_existing_papers` defaults False
+- [x] Empty `thread_id` fails validation
+- [x] `ResearchPlan.reuse_existing_papers` defaults False
 
 **Commit**: `feat(research): add API schemas`
 
@@ -205,7 +205,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] `PaperHit` fields match design
+- [x] `PaperHit` fields match design
 
 **Commit**: `feat(research): add paper port`
 
@@ -223,7 +223,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Protocol methods match design signatures
+- [x] Protocol methods match design signatures
 
 **Commit**: `feat(research): add chunk repository protocol`
 
@@ -241,7 +241,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Protocol matches design
+- [x] Protocol matches design
 
 **Commit**: `feat(research): add embedding port`
 
@@ -259,8 +259,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Planner prompt includes all four agent names
-- [ ] Models: planner/writer `gpt-5.1`, others `gpt-5-mini`
+- [x] Planner prompt includes all four agent names
+- [x] Models: planner/writer `gpt-5.1`, others `gpt-5-mini`
 
 **Commit**: `feat(research): add agent registry`
 
@@ -278,7 +278,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Spec event names only; `answer_delta` not in the allowlist/helpers
+- [x] Spec event names only; `answer_delta` not in the allowlist/helpers
 
 **Commit**: `feat(research): add SSE frame mapper`
 
@@ -296,8 +296,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Search/load go through `to_thread` for sync clients
-- [ ] No other search vendor imported
+- [x] Search/load go through `to_thread` for sync clients
+- [x] No other search vendor imported
 
 **Commit**: `feat(research): add arXiv adapter`
 
@@ -315,7 +315,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Model id is `text-embedding-3-small`
+- [x] Model id is `text-embedding-3-small`
 
 **Commit**: `feat(research): add embeddings adapter`
 
@@ -333,7 +333,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Lookup by name; unknown name raises
+- [x] Lookup by name; unknown name raises
 
 **Commit**: `feat(research): add tool registry`
 
@@ -351,8 +351,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Schema matches design (`vector` extension, PK `(arxiv_id, version)`)
-- [ ] RAG query filters to provided paper keys (not full-library k-NN)
+- [x] Schema matches design (`vector` extension, PK `(arxiv_id, version)`)
+- [x] RAG query filters to provided paper keys (not full-library k-NN)
 
 **Commit**: `feat(research): add pgvector chunk repository`
 
@@ -370,8 +370,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Structured `in_domain` / `language` / `reason`
-- [ ] No `PaperPort` usage in this module
+- [x] Structured `in_domain` / `language` / `reason`
+- [x] No `PaperPort` usage in this module
 
 **Commit**: `feat(research): add gate runner`
 
@@ -389,8 +389,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Invalid agent name rejected after parse
-- [ ] `historical` and `reuse_existing_papers` on the plan type
+- [x] Invalid agent name rejected after parse
+- [x] `historical` and `reuse_existing_papers` on the plan type
 
 **Commit**: `feat(research): add planner runner`
 
@@ -408,9 +408,9 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Allowlist + recency (unless historical); `max_papers` cap
-- [ ] Reuse path skips `search`
-- [ ] Chunks numbered `[1…]` for the Writer
+- [x] Allowlist + recency (unless historical); `max_papers` cap
+- [x] Reuse path skips `search`
+- [x] Chunks numbered `[1…]` for the Writer
 
 **Commit**: `feat(research): add researcher runner`
 
@@ -428,8 +428,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Prompt includes formatted `[n]` blocks
-- [ ] Prompt forbids citing indices not in the list and requires stating conflicts
+- [x] Prompt includes formatted `[n]` blocks
+- [x] Prompt forbids citing indices not in the list and requires stating conflicts
 
 **Commit**: `feat(research): add writer runner`
 
@@ -447,7 +447,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] All four v1 names resolve; unknown name raises
+- [x] All four v1 names resolve; unknown name raises
 
 **Commit**: `feat(research): add agent factory`
 
@@ -465,8 +465,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Research eval uses allowlist/date/coverage rules from Policy
-- [ ] Writer eval requires real `[n]`, query language, student tone, no extra sources
+- [x] Research eval uses allowlist/date/coverage rules from Policy
+- [x] Writer eval requires real `[n]`, query language, student tone, no extra sources
 
 **Commit**: `feat(research): add eval strategies`
 
@@ -484,7 +484,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Event name `gate`; refuse sets `outcome`
+- [x] Event name `gate`; refuse sets `outcome`
 
 **Commit**: `feat(research): add gate graph node`
 
@@ -502,7 +502,7 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] `state["plan"]` filled; event `plan`
+- [x] `state["plan"]` filled; event `plan`
 
 **Commit**: `feat(research): add planner graph node`
 
@@ -520,8 +520,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Dispatch by registry name only
-- [ ] Events `step_start` and `step_end`
+- [x] Dispatch by registry name only
+- [x] Events `step_start` and `step_end`
 
 **Commit**: `feat(research): add execute graph node`
 
@@ -539,8 +539,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] retry vs advance vs fail on state
-- [ ] `max_retries_per_step` applied
+- [x] retry vs advance vs fail on state
+- [x] `max_retries_per_step` applied
 
 **Commit**: `feat(research): add evaluate graph node`
 
@@ -558,8 +558,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] No `answer_complete` on refuse/insufficient
-- [ ] Pass path includes markdown + citations
+- [x] No `answer_complete` on refuse/insufficient
+- [x] Pass path includes markdown + citations
 
 **Commit**: `feat(research): add finalize graph node`
 
@@ -577,8 +577,8 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Compiled graph matches design state diagram
-- [ ] `reuse_existing_papers` is visible to the researcher via state/plan
+- [x] Compiled graph matches design state diagram
+- [x] `reuse_existing_papers` is visible to the researcher via state/plan
 
 **Commit**: `feat(research): compile research state graph`
 
@@ -596,9 +596,9 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Missing/blank `thread_id` → 400, graph not started
-- [ ] Success path `Content-Type: text/event-stream`
-- [ ] Timeout yields `insufficient` or `error` then closes
+- [x] Missing/blank `thread_id` → 400, graph not started
+- [x] Success path `Content-Type: text/event-stream`
+- [x] Timeout yields `insufficient` or `error` then closes
 
 **Commit**: `feat(research): add POST /research SSE`
 
@@ -616,9 +616,9 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] `app.py` does not import `plan_based_researcher.graph`
-- [ ] New chat creates `thread_id` in session; messages POST `{ query, thread_id }`
-- [ ] `[n]` mapped to `cl.Text(..., display="side")`
+- [x] `app.py` does not import `plan_based_researcher.graph`
+- [x] New chat creates `thread_id` in session; messages POST `{ query, thread_id }`
+- [x] `[n]` mapped to `cl.Text(..., display="side")`
 
 **Commit**: `feat(research): add Chainlit SSE mapping`
 
@@ -636,9 +636,9 @@ T28,T16 ──→ T29
 
 **Done when**:
 
-- [ ] Graph compiled once at startup with `AsyncPostgresSaver(pool)`
-- [ ] `GET /health` pings Postgres
-- [ ] App `papers`/`chunks` schema created on startup (or documented migration equivalent)
+- [x] Graph compiled once at startup with `AsyncPostgresSaver(pool)`
+- [x] `GET /health` pings Postgres
+- [x] App `papers`/`chunks` schema created on startup (or documented migration equivalent)
 
 **Commit**: `feat(research): add API lifespan and health`
 
