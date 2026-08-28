@@ -6,6 +6,8 @@
 **Architecture constraints:** `.specs/features/arxiv-grounded-research/context.md` (2026-08-26)  
 **Design:** `.specs/features/arxiv-grounded-research/design.md` (draft)
 
+**Loop amendment (approved 2026-08-27):** `.specs/features/orchestrator-eval-replan/spec.md` supersedes **ORCH-01**, **ORCH-02**, **CAP-01 retry count**, **PLAN-01 agent set** (combined `researcher`), and **THR-02 mechanism** (`reuse_existing_papers`). Unchanged here: Gate, ORCH-03, ARX-*, GROUND-*, SSE event names, UI-*, `max_steps=8`, `max_papers=8`, timeout.
+
 ## Problem Statement
 
 Students asking AI/ML questions get fluent answers that mix parametric memory with the open web. That is unreliable for learning: claims are hard to check, sources are not papers, and a single LLM pass does not plan or correct itself. This feature answers only from arXiv papers in a fixed AI/ML category allowlist, with a plan-based multi-agent loop, per-step evaluation, and grounded generation (every technical claim tied to a retrieved chunk).
@@ -173,32 +175,32 @@ Students asking AI/ML questions get fluent answers that mix parametric memory wi
 ## Requirement Traceability
 
 
-| Requirement ID | Story                     | Phase  | Status    |
-| -------------- | ------------------------- | ------ | --------- |
-| API-01         | P1: In-domain research    | Execute | Implemented |
-| SSE-01         | P1: In-domain research    | Execute | Implemented |
-| SSE-02         | P1: In-domain research    | Execute | Implemented |
-| GATE-01        | P1: Out-of-domain refusal | Execute | Implemented |
-| GATE-02        | P1: Out-of-domain refusal | Execute | Implemented |
-| PLAN-01        | P1: In-domain research    | Execute | Implemented |
-| ORCH-01        | P1: In-domain research    | Execute | Implemented |
-| ORCH-02        | P1: In-domain research    | Execute | Implemented |
-| ORCH-03        | P1: In-domain research    | Execute | Implemented |
-| ARX-01         | P1: In-domain research    | Execute | Implemented |
-| ARX-02         | P1: In-domain research    | Execute | Implemented |
-| ARX-03         | P2: Cache hit             | Execute | Implemented |
-| ARX-04         | P1: In-domain research    | Execute | Implemented |
-| EMB-01         | P1: In-domain research    | Execute | Implemented |
-| GROUND-01      | P1: In-domain research    | Execute | Implemented |
-| GROUND-02      | P1: In-domain research    | Execute | Implemented |
-| GROUND-03      | P1: In-domain research    | Execute | Implemented |
-| CAP-01         | P1: In-domain research    | Execute | Implemented |
-| THR-01         | P2: Follow-up             | Execute | Implemented |
-| THR-02         | P2: Follow-up             | Execute | Implemented |
-| UI-01          | P1: Chainlit chat         | Execute | Implemented |
-| UI-02          | P1: Chainlit chat         | Execute | Implemented |
-| UI-03          | P1: Chainlit chat         | Execute | Implemented |
-| RUN-01         | P1: Chainlit chat         | Execute | Implemented |
+| Requirement ID | Story                     | Phase    | Status |
+| -------------- | ------------------------- | -------- | ------ |
+| API-01         | P1: In-domain research    | Validate | ✅ Verified (static) |
+| SSE-01         | P1: In-domain research    | Validate | ✅ Verified (static) |
+| SSE-02         | P1: In-domain research    | Validate | ✅ Verified (static) |
+| GATE-01        | P1: Out-of-domain refusal | Validate | ✅ Verified (static); ⏳ UAT |
+| GATE-02        | P1: Out-of-domain refusal | Validate | ✅ Verified (static) |
+| PLAN-01        | P1: In-domain research    | Validate | ✅ Verified (static); ⏳ UAT |
+| ORCH-01        | P1: In-domain research    | Validate | ✅ Fixed (retry uses eval feedback); ⏳ UAT |
+| ORCH-02        | P1: In-domain research    | Validate | ✅ Verified (static) |
+| ORCH-03        | P1: In-domain research    | Validate | ✅ Verified (static); ⏳ UAT |
+| ARX-01         | P1: In-domain research    | Validate | ✅ Verified (adapter); ⏳ UAT |
+| ARX-02         | P1: In-domain research    | Validate | ✅ Verified (static) |
+| ARX-03         | P2: Cache hit             | Validate | ✅ Fixed (dict_row mapping); ⏳ UAT |
+| ARX-04         | P1: In-domain research    | Validate | ✅ Verified (static) |
+| EMB-01         | P1: In-domain research    | Validate | ✅ Fixed (RAG fetch via named columns); ⏳ UAT |
+| GROUND-01      | P1: In-domain research    | Validate | ✅ Verified (static); ⏳ UAT |
+| GROUND-02      | P1: In-domain research    | Validate | ✅ Fixed (`citations[]` from used `[n]`); ⏳ UAT |
+| GROUND-03      | P1: In-domain research    | Validate | ✅ Verified (prompt only); ⏳ UAT |
+| CAP-01         | P1: In-domain research    | Validate | ✅ Verified (static) |
+| THR-01         | P2: Follow-up             | Validate | ✅ Verified (static); ⏳ UAT |
+| THR-02         | P2: Follow-up             | Validate | ⏳ Pending UAT |
+| UI-01          | P1: Chainlit chat         | Validate | ✅ Verified (static); ⏳ UAT |
+| UI-02          | P1: Chainlit chat         | Validate | ✅ Verified (static); ⏳ UAT |
+| UI-03          | P1: Chainlit chat         | Validate | ✅ Verified (static) |
+| RUN-01         | P1: Chainlit chat         | Validate | ✅ Fixed (`CREATE TABLE IF NOT EXISTS`); ⏳ UAT |
 
 
 **ID map (normative behavior):**
@@ -228,7 +230,7 @@ Students asking AI/ML questions get fluent answers that mix parametric memory wi
 - **UI-03** — Chainlit is HTTP client of FastAPI only.
 - **RUN-01** — Postgres/pgvector in Docker only; API + Chainlit on host; app code async with `to_thread` for sync PDF/arXiv I/O.
 
-**Coverage:** 24 total, 24 mapped to tasks (see `tasks.md`), 0 unmapped
+**Coverage:** 24 total, 24 mapped to tasks (see `tasks.md`), 0 unmapped. 2026-08-27: ARX-03, EMB-01, RUN-01, ORCH-01, GROUND-02 fixed in code; live SSE/Chainlit UAT still pending.
 
 ---
 

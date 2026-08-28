@@ -46,5 +46,5 @@
 - All project artifacts (code, docs, comments, API contracts, prompts) must be in **English**. Student-facing answer language follows the query language.
 - LLM and embeddings: OpenAI only.
 - Evidence: arXiv only; category allowlist `cs.AI`, `cs.LG`, `cs.CL`, `cs.CV`, `cs.NE`, `cs.RO`, `stat.ML`.
-- Caps: `max_steps=8`, `max_retries_per_step=2`, `max_papers=8`, timeout ~2 minutes.
-- Splitter: 500 / 100. Feature spec: `.specs/features/arxiv-grounded-research/spec.md`. Architecture: `.specs/features/arxiv-grounded-research/context.md`.
+- Caps: `max_steps=8`, **1 retry per step (2 attempts)**, `max_replans=1`, `max_papers=8`, timeout ~2 minutes.
+- Splitter: 500 / 100. Feature spec: `.specs/features/arxiv-grounded-research/spec.md` (v1; loop IDs superseded by orchestrator-eval-replan). Loop spec: `.specs/features/orchestrator-eval-replan/spec.md`. Architecture: `.specs/features/arxiv-grounded-research/context.md`.

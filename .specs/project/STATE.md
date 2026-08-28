@@ -1,7 +1,7 @@
 # State
 
-**Last Updated:** 2026-08-26
-**Current Work:** ArXiv-grounded research v1 implemented (T1–T31). Manual SSE/Chainlit checks remain; automated tests still deferred.
+**Last Updated:** 2026-08-27
+**Current Work:** Feature `orchestrator-eval-replan` — tasks draft pending user approval (`.specs/features/orchestrator-eval-replan/tasks.md`). Spec and design approved. v1 UAT still pending (B-001).
 
 ---
 
@@ -77,11 +77,30 @@
 **Trade-off:** Slightly more modules up front vs a single script of nodes.
 **Impact:** Design and tasks must follow `.specs/features/arxiv-grounded-research/context.md` (PAT-01–PAT-12).
 
+### AD-011: Semantic eval, 1 retry, 1 remaining replan (2026-08-27)
+
+**Decision:** Orchestrator interprets a variable plan of `search` / `retrieve` / `writer`. Eval is semantic and artifact-specific (not “it ran”). 1 retry = 2 attempts on the same step. If that is not enough, or eval says the **plan** is wrong, 1 replan of the **remaining** suffix only; passed steps are not redone. Then `insufficient`. Typical plans: explain = search→retrieve→writer; compare = search×N→retrieve→writer; follow-up = retrieve→writer. Search does not load PDFs; retrieve hybrid 0.7/0.3 is under the hood. Caps: 1 retry/step, 1 replan/run, plus existing `max_steps` / timeout / `max_papers`.
+**Reason:** User specified the loop; v1 combined researcher + retry-then-stop cannot drop a failed compare topic without either inventing coverage or failing the whole run.
+**Trade-off:** Split roster (`search`/`retrieve` vs one `researcher`); stricter eval; one extra planner call per run at most.
+**Impact:** Spec and design approved 2026-08-27. Supersedes ORCH-01, ORCH-02, CAP-01 retry count, combined `researcher` plan step, and THR-02 `reuse_existing_papers` mechanism. Gate, SSE event names, Writer grounding (ORCH-03), Chainlit unchanged. Consecutive `search` steps may `Send` in parallel; semantic search eval is **one** structured LLM call per wave with **N independent verdicts** (SEARCH-02).
+
+### AD-012: Eval-replan design locks (2026-08-27)
+
+**Decision:** Approve `.specs/features/orchestrator-eval-replan/design.md`. Search waves use LangGraph `Send` and admit papers only after eval pass. Hybrid retrieve is `EnsembleRetriever` RRF weights 0.7/0.3 (`langchain-classic` + BM25), not linear score fusion. Follow-up omits `search` (drop `reuse_existing_papers`). `Policy.max_retries_per_step=1`, `max_replans=1`. Mixed-wave remaining head is the earliest unpassed step; later passed searches are not rerun.
+**Reason:** User approved the design as written.
+**Trade-off:** RRF ≠ raw 0.7/0.3 score mix; extra graph nodes (`dispatch`, `search`, `replan`).
+**Impact:** Tasks and implementation must follow that design. PROJECT.md caps updated. Parent spec banner marks superseded IDs.
+
 ---
 
 ## Active Blockers
 
-None.
+### B-001: Host port 5432 occupied (`hackathon2026-postgres`)
+
+**Discovered:** 2026-08-27
+**Impact:** `docker compose up` for this project's pgvector cannot bind 5432.
+**Workaround:** Temporary pgvector on 5433 for repo smoke. Stop the other container, or map compose to a free port, before API/Chainlit UAT.
+**Resolution:** Free 5432 or change this project's published port.
 
 ---
 
@@ -89,6 +108,8 @@ None.
 
 - `ChatOpenAI` validates `OPENAI_API_KEY` at construct time. Agent factory must pass `api_key` into Gate, Planner, and Writer runners; relying on env alone fails when Settings reads `.env` without exporting it.
 - Parallel `[P]` tasks cannot each `git commit` safely; implement in parallel, then serialize atomic commits on the orchestrator.
+- Sharing one psycopg pool with `AsyncPostgresSaver` (`dict_row`) means app SQL must read rows by column name (or set `tuple_row` on those cursors). Indexing `row[0]` crashes on cache hit and on RAG `fetchall`.
+- On Windows, psycopg async cannot use the default `ProactorEventLoop`; smoke/scripts need `WindowsSelectorEventLoopPolicy` (uvicorn typically already uses a compatible loop).
 
 ---
 
@@ -121,10 +142,17 @@ None.
 - [x] Automated tests deferred (no pytest/Testcontainers in v1 tasks)
 - [x] User approve `.specs/features/arxiv-grounded-research/tasks.md` before Execute
 - [x] Remove Tavily from runtime dependencies when implementing Foundation
-- [ ] Manual UAT: in-domain SSE, out-of-domain gate, Chainlit `[n]` side panel, follow-up reuse
+- [x] Fix: `PgChunkRepository` row mapping under `dict_row` (ARX-03 / EMB-01)
+- [x] Fix: `CREATE TABLE` / `CREATE INDEX` `IF NOT EXISTS` on API restart (RUN-01)
+- [x] Fix: researcher retry uses `last_eval.feedback`; `citations[]` only used `[n]`
+- [ ] Manual UAT: in-domain SSE, out-of-domain gate, Chainlit `[n]` side panel, follow-up omit-search (needs free Postgres port)
+- [x] User approve `.specs/features/orchestrator-eval-replan/spec.md`
+- [x] User approve `.specs/features/orchestrator-eval-replan/design.md` before Tasks
+- [x] After spec+design approval: update PROJECT.md caps (`max_retries_per_step` → 1 retry / 2 attempts; add `max_replans=1`) and parent spec superseded IDs
+- [ ] User approve `.specs/features/orchestrator-eval-replan/tasks.md` before Execute
 
 ---
 
 ## Preferences
 
-**Model Guidance Shown:** never
+**Model Guidance Shown:** 2026-08-27 — validation / STATE / spec traceability is a good fit for a faster model.

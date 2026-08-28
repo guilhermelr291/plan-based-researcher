@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
@@ -11,6 +13,8 @@ from plan_based_researcher.graph.state import EvidenceChunk, GraphState
 from plan_based_researcher.policy import Policy
 
 __all__ = ["WriterOutput", "WriterRunner"]
+
+_CITATION_RE = re.compile(r"\[(\d+)\]")
 
 
 class WriterOutput(BaseModel):
@@ -36,19 +40,37 @@ def _format_chunks(chunks: list[EvidenceChunk]) -> str:
     return "\n\n".join(blocks)
 
 
-def _citations_from_chunks(chunks: list[EvidenceChunk]) -> list[dict]:
-    return [
-        Citation(
-            n=chunk["n"],
-            arxiv_id=chunk["arxiv_id"],
-            title=chunk["title"],
-            year=chunk["year"],
-            url=chunk["url"],
-            excerpt=chunk["excerpt"],
-            chunk_id=chunk["chunk_id"],
-        ).model_dump()
-        for chunk in chunks
-    ]
+def _used_citation_ns(markdown: str, chunks: list[EvidenceChunk]) -> list[int]:
+    valid = {int(chunk["n"]) for chunk in chunks}
+    seen: set[int] = set()
+    ordered: list[int] = []
+    for match in _CITATION_RE.finditer(markdown):
+        n = int(match.group(1))
+        if n in valid and n not in seen:
+            seen.add(n)
+            ordered.append(n)
+    return ordered
+
+
+def _citations_from_chunks(chunks: list[EvidenceChunk], ns: list[int]) -> list[dict]:
+    by_n = {int(chunk["n"]): chunk for chunk in chunks}
+    citations: list[dict] = []
+    for n in ns:
+        chunk = by_n.get(n)
+        if chunk is None:
+            continue
+        citations.append(
+            Citation(
+                n=chunk["n"],
+                arxiv_id=chunk["arxiv_id"],
+                title=chunk["title"],
+                year=chunk["year"],
+                url=chunk["url"],
+                excerpt=chunk["excerpt"],
+                chunk_id=chunk["chunk_id"],
+            ).model_dump()
+        )
+    return citations
 
 
 def _language(state: GraphState) -> str:
@@ -119,8 +141,9 @@ class WriterRunner:
             ]
         )
         markdown = output.markdown if isinstance(output, WriterOutput) else str(output)
+        used_ns = _used_citation_ns(markdown, chunks)
         return {
             "writer_markdown": markdown,
-            "citations": _citations_from_chunks(chunks),
+            "citations": _citations_from_chunks(chunks, used_ns),
             "last_agent": "writer",
         }

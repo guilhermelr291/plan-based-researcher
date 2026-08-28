@@ -93,12 +93,18 @@ class ResearcherRunner:
         task_or_query = step.get("task") or query
         existing = _unique_refs(state.get("papers") or [], limit=Policy.max_papers)
         reuse = _reuse_existing(state)
+        last_eval = state.get("last_eval") or {}
+        is_retry = last_eval.get("status") == "retry"
+        feedback = str(last_eval.get("feedback") or "").strip()
+        search_text = task_or_query
+        if is_retry and feedback:
+            search_text = f"{task_or_query}\n{feedback}"
 
-        if reuse:
+        if reuse and not is_retry:
             selected = existing
         else:
             hits = await self._papers.search(
-                task_or_query, max_results=Policy.max_papers
+                search_text, max_results=Policy.max_papers
             )
             selected = existing[:]
             seen = {(p["arxiv_id"], p["version"]) for p in selected}
@@ -144,7 +150,7 @@ class ResearcherRunner:
             usable.append(ref)
 
         paper_keys = [(p["arxiv_id"], p["version"]) for p in usable]
-        qvec = await self._embeddings.embed_query(task_or_query)
+        qvec = await self._embeddings.embed_query(search_text)
         found = await self._chunks.similarity_search(
             qvec, paper_keys, k=_RETRIEVE_K
         )

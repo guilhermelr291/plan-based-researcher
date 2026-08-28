@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
 from uuid import uuid4
 
 from pgvector import Vector
@@ -13,7 +15,7 @@ from plan_based_researcher.ports.chunks import EvidenceChunk, PaperRecord
 _SCHEMA_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE papers (
+CREATE TABLE IF NOT EXISTS papers (
   arxiv_id TEXT NOT NULL,
   version TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -24,7 +26,7 @@ CREATE TABLE papers (
   PRIMARY KEY (arxiv_id, version)
 );
 
-CREATE TABLE chunks (
+CREATE TABLE IF NOT EXISTS chunks (
   chunk_id UUID PRIMARY KEY,
   arxiv_id TEXT NOT NULL,
   version TEXT NOT NULL,
@@ -35,7 +37,7 @@ CREATE TABLE chunks (
   FOREIGN KEY (arxiv_id, version) REFERENCES papers (arxiv_id, version)
 );
 
-CREATE INDEX chunks_papers_idx ON chunks (arxiv_id, version);
+CREATE INDEX IF NOT EXISTS chunks_papers_idx ON chunks (arxiv_id, version);
 """
 
 _GET_PAPER_SQL = """
@@ -87,26 +89,26 @@ def _schema_statements(sql: str) -> list[str]:
     return [part.strip() for part in sql.split(";") if part.strip()]
 
 
-def _paper_from_row(row: tuple) -> PaperRecord:
+def _paper_from_row(row: Mapping[str, Any]) -> PaperRecord:
     return PaperRecord(
-        arxiv_id=str(row[0]),
-        version=str(row[1]),
-        title=str(row[2]),
-        year=int(row[3]),
-        url=str(row[4]),
-        categories=list(row[5]),
+        arxiv_id=str(row["arxiv_id"]),
+        version=str(row["version"]),
+        title=str(row["title"]),
+        year=int(row["year"]),
+        url=str(row["url"]),
+        categories=list(row["categories"]),
     )
 
 
-def _chunk_from_row(row: tuple) -> EvidenceChunk:
+def _chunk_from_row(row: Mapping[str, Any]) -> EvidenceChunk:
     return EvidenceChunk(
-        chunk_id=str(row[0]),
-        arxiv_id=str(row[1]),
-        version=str(row[2]),
-        title=str(row[3]),
-        year=int(row[4]),
-        url=str(row[5]),
-        excerpt=str(row[6]),
+        chunk_id=str(row["chunk_id"]),
+        arxiv_id=str(row["arxiv_id"]),
+        version=str(row["version"]),
+        title=str(row["title"]),
+        year=int(row["year"]),
+        url=str(row["url"]),
+        excerpt=str(row["content"]),
         n=0,
     )
 

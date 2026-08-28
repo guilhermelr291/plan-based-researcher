@@ -1,7 +1,7 @@
 # Roadmap
 
-**Current Milestone:** ArXiv-grounded research v1  
-**Status:** Implemented (manual verification remaining)
+**Current Milestone:** Orchestrator eval + remaining-plan replan  
+**Status:** Tasking (tasks draft pending approval)
 
 ---
 
@@ -36,6 +36,24 @@
 - pgvector lazy ingest `(arxiv_id, version)`
 - `AsyncPostgresSaver` thread state
 - Chainlit steps + side-panel citations
+
+---
+
+## Orchestrator eval + remaining-plan replan
+
+**Goal:** Orchestrator interprets a variable `search` / `retrieve` / `writer` plan; eval is semantic per artifact; 1 retry (2 attempts) per step; 1 remaining-only replan per run; then `insufficient`.
+**Target:** Tasks approved, then execute `.specs/features/orchestrator-eval-replan/tasks.md`.
+**Spec:** Approved 2026-08-27.
+**Design:** Approved 2026-08-27.
+
+### Features
+
+**Semantic step eval and remaining-plan replan** - TASKING
+
+- Plan shapes: explain / compare (`search` × N) / follow-up (omit `search`)
+- Search eval on titles+abstracts (no PDF); retrieve `[n]` + hybrid 0.7/0.3 under the hood; writer unchanged grounding
+- 1 retry per step with feedback; 1 replan of the remaining suffix only
+- Caps: retries + 1 replan, plus existing `max_steps` / timeout / `max_papers`
 
 ---
 
