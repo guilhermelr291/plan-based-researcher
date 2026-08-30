@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from langchain_openai import ChatOpenAI
 
+from plan_based_researcher.agents.writer import living_and_missing
 from plan_based_researcher.eval.types import (
     EvalResult,
     SearchStepVerdict,
@@ -101,7 +102,37 @@ def _writer_checklist() -> str:
         f"Grounding: {Policy.GROUNDING_RULE}.\n"
         "Answer in the same language as the student query.\n"
         "Use a didactic, student-friendly tone.\n"
-        "Do not introduce sources outside the provided evidence chunks or arxiv.org URLs."
+        "Do not introduce sources outside the provided evidence chunks or arxiv.org URLs.\n"
+        "Fail if the answer teaches a definition, mechanism, or comparison of a missing "
+        "topic (parametric fill).\n"
+        "Fail if living [n] citations are used as if they were the missing topic.\n"
+        "A sentence that no usable paper was found for a named topic is not a technical "
+        "claim and does not need [n].\n"
+        "Living topics still need real [n] (ORCH-03 is enforced deterministically)."
+    )
+
+
+def _format_living_missing(living: list[dict], missing: list[dict]) -> str:
+    if living:
+        living_body = "\n".join(
+            f"- {item['task']} arXiv:{item['arxiv_id']}v{item['version']} "
+            f"{' '.join(f'[{n}]' for n in item['ns'])}"
+            for item in living
+        )
+    else:
+        living_body = "(none)"
+    if missing:
+        missing_body = "\n".join(
+            f"- {item['task']} ({item['reason']})" for item in missing
+        )
+    else:
+        missing_body = "(none)"
+    return (
+        "Living topics (cite only these [n] for those topics):\n"
+        f"{living_body}\n\n"
+        "Missing topics (announce absence; do not define/compare from memory; "
+        "do not cite living [n] as the missing topic):\n"
+        f"{missing_body}"
     )
 
 
@@ -494,7 +525,7 @@ class RetrieveEvalStrategy:
 
 
 class WriterEvalStrategy:
-    """ORCH-03: real [n] citations, query language, student tone, no extra sources."""
+    """ORCH-03 + WRITE-02: real [n], language/tone, no extra sources, hole rule."""
 
     def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key
@@ -576,6 +607,8 @@ class WriterEvalStrategy:
         if self._judge is None:
             return None
         query = str(data.get("query") or "")
+        living, missing = living_and_missing(data)
+        coverage = _format_living_missing(living, missing)
         try:
             result = await self._judge.ainvoke(
                 [
@@ -587,7 +620,9 @@ class WriterEvalStrategy:
                     ),
                     (
                         "human",
-                        f"Student query:\n{query}\n\nWriter markdown:\n{markdown}",
+                        f"Student query:\n{query}\n\n"
+                        f"{coverage}\n\n"
+                        f"Writer markdown:\n{markdown}",
                     ),
                 ]
             )
