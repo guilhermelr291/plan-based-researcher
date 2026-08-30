@@ -125,6 +125,8 @@ def _retrieve_checklist() -> str:
         "Evaluate retrieve evidence against THIS retrieve step task.\n"
         "Chunks must be numbered [n] and come only from already-admitted papers.\n"
         "Chunks must match the retrieve task.\n"
+        "A T3 query miss is a retrieve query rewrite on the same papers, "
+        "not a new PDF walk.\n"
         "Return status pass, retry, or fail with feedback. "
         "Set plan_inadequate if the admitted paper set cannot satisfy this task."
     )
@@ -391,6 +393,26 @@ class RetrieveEvalStrategy:
 
     async def evaluate(self, state: GraphState | dict) -> EvalResult:
         data = _as_state(state)
+        ingest = data.get("retrieve_ingest") or {}
+        case = ingest.get("case") if isinstance(ingest, dict) else None
+        if case == "t1":
+            return EvalResult(
+                status="fail",
+                plan_inadequate=True,
+                feedback=(
+                    "T1: no usable papers after ingest. Do not retry the retrieve query."
+                ),
+            )
+        if case == "t2a":
+            return EvalResult(
+                status="fail",
+                plan_inadequate=True,
+                feedback=(
+                    "T2a: at least one passed ranking ingested no usable PDF; "
+                    "hybrid ran on living papers. Do not retry the retrieve query."
+                ),
+            )
+        # t3 / default: existing path
         deterministic = self._deterministic(data)
         if deterministic.status != "pass":
             return deterministic
