@@ -1,11 +1,12 @@
 # Orchestrator Semantic Eval and Remaining-Plan Replan Specification
 
 **Feature:** `orchestrator-eval-replan`  
-**Spec status:** Approved (2026-08-27)  
+**Spec status:** Approved (2026-08-27); LOOP-02 per-step `eval_by_step` added 2026-08-28  
 **Date:** 2026-08-27  
 **Parent:** `.specs/features/arxiv-grounded-research/spec.md` (approved v1)  
 **Architecture constraints:** `.specs/features/arxiv-grounded-research/context.md` (PAT-01–PAT-12 still apply)  
-**Design:** `.specs/features/orchestrator-eval-replan/design.md` (approved 2026-08-27)
+**Design:** `.specs/features/orchestrator-eval-replan/design.md` (approved 2026-08-27)  
+**Amended:** `.specs/features/admission-retrieve-per-topic/` (spec + design approved 2026-08-29) replaces SEARCH-01 **admission**, SEARCH-02 **verdict shape**, RETR-01 **global `k`**, and LOOP-03 on **search attempt 1**. Unnamed IDs in this file stay in force.
 
 This spec defines **only** the new orchestrator loop, plan shape, per-artifact eval, retry, and replan. Gate, arXiv allowlist, grounding format, SSE event **names**, Chainlit, checkpointer, models, splitter sizes, `max_papers`, and timeout stay as in the parent spec unless an ID below explicitly supersedes them.
 
@@ -87,9 +88,9 @@ Parent ORCH-03 (Writer checklist), GATE-*, ARX-*, GROUND-*, SSE event **names**,
 1. WHEN a step finishes THEN the Orchestrator SHALL evaluate that step’s **artifact** against **that step’s `task`** (semantic, not only non-empty output). Checklists below are normative and **do not change** when a replan rewrites the remaining list (only the list changes).
 2. WHEN eval **passes** THEN the system SHALL reset that step’s retry counter and SHALL advance to the next step in the current plan. It SHALL NOT re-execute steps that already passed.
 3. WHEN eval **fails** and this step has not yet used its one retry THEN the system SHALL execute the **same** step again with eval **feedback** (two attempts total: first try + one retry). `eval` SSE SHALL reflect retry (existing `eval` event; no new event name).
-4. WHEN the step is `search` THEN eval SHALL require titles + abstracts to match **this** task, plus allowlist and recency (or historical). Retry SHALL be a **new arXiv query**, not a PDF fetch. Eval SHALL NOT require PDFs or chunks.
+4. WHEN the step is `search` THEN eval SHALL require titles + abstracts to match **this** task, plus allowlist and recency (or historical). The search agent SHALL **always** formulate the arXiv `search_query` from the step `task` via structured output (English prompt; `task` is the research goal, not the query). Retry SHALL formulate a **new** arXiv query from that task plus **that step’s** eval feedback, not a PDF fetch. Eval SHALL NOT require PDFs or chunks.
 5. WHEN one or more `search` steps in the same wave have returned (each: titles + abstracts from arXiv) THEN the semantic judge SHALL be **one** LLM call with structured output over **all** of those returns together. The structured output SHALL contain **one independent verdict (yes or no) + feedback per search step** (not one pass/fail for the whole wave, and not one LLM call per return) + reasoning. A single-topic plan (N=1) uses the same path: one call, one verdict. A retry wave SHALL be one call over only the searches still being retried. Allowlist / recency / empty-hit checks MAY run without an LLM before that call.
-6. WHEN the step is `retrieve` THEN eval SHALL require numbered chunks `[n]` drawn only from already-admitted papers and aligned to **this** retrieve task. Retry SHALL **rewrite the retrieval query in English** (same paper set unless a later replan changes remaining steps).
+6. WHEN the step is `retrieve` THEN eval SHALL require numbered chunks `[n]` drawn only from already-admitted papers and aligned to **this** retrieve task. The retrieve agent SHALL **always** formulate an **English** hybrid retrieval query from the step `task` via structured output. Retry SHALL formulate a **new** English query from that task plus that step’s eval feedback (same paper set unless a later replan changes remaining steps).
 7. WHEN the step is `writer` THEN eval SHALL keep parent ORCH-03: student language, didactic tone, every technical claim cites a real `[n]`, no extra sources. Retry SHALL rewrite using the **same** evidence chunks (no new search/retrieve on retry). Replan triggered from Writer is rare; if the prose is fine and the **question** is stale, remaining steps SHOULD already have been replanned **before** Writer.
 8. WHEN Writer eval **passes** THEN the system SHALL emit `answer_complete` (markdown + `citations[]`) and SHALL NOT emit `answer_delta`. The student-visible answer SHALL appear only then. WHEN the plan has no further steps and Writer has not passed THEN the system SHALL NOT emit `answer_complete`.
 
@@ -126,7 +127,7 @@ Parent ORCH-03 (Writer checklist), GATE-*, ARX-*, GROUND-*, SSE event **names**,
 - WHEN `max_papers=8` is already reached THEN later `search` steps SHALL not admit more unique papers; `retrieve` / Writer use the admitted set (parent ARX-04).
 - WHEN PDF text is unusable on retrieve miss THEN that paper SHALL not contribute chunks; retrieve eval / retry / replan / `insufficient` follow this spec; Writer SHALL NOT cite empty chunks (parent).
 - WHEN two chunks disagree THEN Writer SHALL state both with `[n]` (parent GROUND-03). Unchanged.
-- WHEN the student query is not English THEN Gate/Planner/Writer-facing student text SHALL match that language; retrieve **retry** query is still rewritten in **English**; paper titles/abstracts/excerpts stay as sourced.
+- WHEN the student query is not English THEN Gate/Planner/Writer-facing student text SHALL match that language; search and retrieve queries SHALL still be formulated in **English** on every attempt; paper titles/abstracts/excerpts stay as sourced.
 - WHEN N parallel searches complete THEN the system SHALL NOT issue N semantic-judge LLM calls. WHEN a retry wave has M remaining searches THEN it SHALL issue one judge call over those M returns.
 
 ---
@@ -143,8 +144,8 @@ Parent ORCH-03 (Writer checklist), GATE-*, ARX-*, GROUND-*, SSE event **names**,
 | Replan                                            | **1 replan per run**, remaining suffix only; retry counter zeroed on the new current step                                                                                 |
 | Passed steps                                      | Never redone; admitted papers from passed searches kept                                                                                                                   |
 | Exhaustion                                        | Retry and replan used up (or caps) → `insufficient`, no invented completion                                                                                               |
-| Search retry                                      | New arXiv query; no PDF                                                                                                                                                   |
-| Retrieve retry                                    | Rewrite retrieval query in English                                                                                                                                        |
+| Search query                                      | Search agent always formulates arXiv `search_query` via structured output from the step `task` (English prompt). Retry = new query + that step’s feedback; no PDF           |
+| Retrieve query                                    | Retrieve agent always formulates an English hybrid query via structured output from the step `task`. Retry = new English query + that step’s feedback                       |
 | Writer retry                                      | Rewrite with the **same** evidence                                                                                                                                        |
 | Retrieve internals (not in the plan)              | Miss → PDF → split 500/100 → hybrid **0.7 / 0.3** over admitted papers                                                                                                    |
 | Caps still in force                               | `max_steps=8`, `max_papers=8`, timeout ~2 min, including steps added by replan                                                                                            |
@@ -191,8 +192,8 @@ flowchart TB
 
 **Eval checklists (normative; replan does not change them):**
 
-- `**search`** — titles + abstracts match **this** task; allowlist + recency (or historical). No PDF. Fail after retry or “this decomposition cannot work” → replan remaining (drop or replace later steps). Do not proceed to a Writer still tasked as if this search passed.
-- `**retrieve`** — `[n]` chunks only from papers that already passed. Internals: miss → PDF → split → hybrid 0.7/0.3. Retry = English retrieval query. Replan = paper set or question cut changed enough that later steps (usually Writer) need a new `task`.
+- `**search`** — titles + abstracts match **this** task; allowlist + recency (or historical). No PDF. Agent formulates the arXiv query from the task (structured output) on every attempt. Fail after retry or “this decomposition cannot work” → replan remaining (drop or replace later steps). Do not proceed to a Writer still tasked as if this search passed.
+- `**retrieve`** — `[n]` chunks only from papers that already passed. Internals: miss → PDF → split → hybrid 0.7/0.3. Agent formulates an English retrieval query from the task (structured output) on every attempt. Replan = paper set or question cut changed enough that later steps (usually Writer) need a new `task`.
 - `**writer`** — real `[n]`, student language, didactic tone, no extra sources. Retry = rewrite on the same evidence. Replan from Writer is rare. Pass → `answer_complete`.
 
 ---
@@ -202,36 +203,36 @@ flowchart TB
 Each requirement gets a unique ID for tracking across design, tasks, and validation.
 
 
-| Requirement ID | Story                     | Phase | Status  |
-| -------------- | ------------------------- | ----- | ------- |
-| PLAN-02        | P1: Variable plan         | Tasks | Pending |
-| LOOP-01        | P1: Semantic eval + retry | Tasks | Pending |
-| LOOP-02        | P1: Semantic eval + retry | Tasks | Pending |
-| LOOP-03        | P1: Replan remaining      | Tasks | Pending |
-| SEARCH-01      | P1: Variable plan         | Tasks | Pending |
-| SEARCH-02      | P1: Semantic eval + retry | Tasks | Pending |
-| RETR-01        | P1: Variable plan         | Tasks | Pending |
-| WRITE-01       | P1: Semantic eval + retry | Tasks | Pending |
-| REPLAN-01      | P1: Replan remaining      | Tasks | Pending |
-| REPLAN-02      | P1: Replan remaining      | Tasks | Pending |
-| CAP-02         | P1: Replan remaining      | Tasks | Pending |
+| Requirement ID | Story                     | Phase | Status |
+| -------------- | ------------------------- | ----- | ------ |
+| PLAN-02        | P1: Variable plan         | Execute | ✅ Verified (code) |
+| LOOP-01        | P1: Semantic eval + retry | Execute | ✅ Verified (code) |
+| LOOP-02        | P1: Semantic eval + retry | Execute | ✅ Verified (code) |
+| LOOP-03        | P1: Replan remaining      | Execute | ⚠ Superseded on search attempt 1 (`admission-retrieve-per-topic` LOOP-04) |
+| SEARCH-01      | P1: Variable plan         | Execute | ⚠ Admission superseded (`admission-retrieve-per-topic` ADM-*) |
+| SEARCH-02      | P1: Semantic eval + retry | Execute | ⚠ Verdict shape superseded (`ranked_keys`; ADM-03) |
+| RETR-01        | P1: Variable plan         | Execute | ⚠ Global `k` superseded (`retrieve_k_per_paper`; RETR-02) |
+| WRITE-01       | P1: Semantic eval + retry | Execute | ✅ Verified (code) |
+| REPLAN-01      | P1: Replan remaining      | Execute | ✅ Verified (code) |
+| REPLAN-02      | P1: Replan remaining      | Execute | ✅ Verified (code) |
+| CAP-02         | P1: Replan remaining      | Execute | ✅ Verified (code) |
 
 
 **ID map (normative behavior):**
 
 - **PLAN-02** — Planner emits a variable-length plan of `search` / `retrieve` / `writer` only. Typical shapes: explain → `search` → `retrieve` → `writer`; compare → `search` × N (distinct tasks) → `retrieve` → `writer`; same-thread follow-up → `retrieve` → `writer` (omit `search`). Registry is the single source of abilities + dispatch.
 - **LOOP-01** — Orchestrator **interprets** the plan: execute current step → semantic eval of **that** artifact against **that** `task` → pass advances; does not pick agents as a supervisor.
-- **LOOP-02** — Fail + retry remaining → same step + feedback. **1 retry = 2 attempts** on that step. Pass zeros the retry counter for the next step.
+- **LOOP-02** — Fail + retry remaining → same step + **that step’s** feedback (persisted in `eval_by_step`; a search wave must not share one `last_eval` across steps). **1 retry = 2 attempts** on that step. Pass zeros the retry counter for the next step.
 - **LOOP-03** — Fail + retry exhausted **or** eval = plan inadequate → if replan remaining, else `insufficient`. Plan-inadequate skips any unused retry on that step.
-- **SEARCH-01** — Search artifact is titles + abstracts for **this** task, allowlist/recency (or historical). No PDF. Retry = new arXiv query. Only passing searches admit papers. Consecutive independent searches may fan out (`Send`) and join before eval.
+- **SEARCH-01** — Search artifact is titles + abstracts for **this** task, allowlist/recency (or historical). No PDF. The search agent **always** formulates the arXiv query from the task via structured output (not the raw `task` or student `query`). Retry = new arXiv query from task + that step’s feedback. Only passing searches admit papers. Consecutive independent searches may fan out (`Send`) and join before eval.
 - **SEARCH-02** — Semantic search eval is **one** LLM structured-output call per wave, input = all title+abstract returns in that wave, output = one verdict + feedback **per search step**. Not one LLM call per return. Not one verdict for the whole wave. Retry wave: one call over the subset still retrying.
-- **RETR-01** — Retrieve artifact is `[n]` chunks only from admitted papers. Under the hood (not a plan step): miss → PDF → split 500/100 → hybrid 0.7 vector / 0.3 lexical. Retry = rewrite retrieval query in English.
+- **RETR-01** — Retrieve artifact is `[n]` chunks only from admitted papers. Under the hood (not a plan step): miss → PDF → split 500/100 → hybrid 0.7 vector / 0.3 lexical. The retrieve agent **always** formulates an English hybrid query from the task via structured output. Retry = new English query from task + that step’s feedback.
 - **WRITE-01** — Writer eval remains ORCH-03. Retry = rewrite on the **same** evidence. Pass → `answer_complete` only; no student-visible answer before that.
 - **REPLAN-01** — At most **one** replan per run. Planner rewrites **only** the remaining suffix. Passed steps and admitted papers stay. Emit existing `plan` event. Zero retry on the new current step. Checklists unchanged.
 - **REPLAN-02** — Example: `search DoRA` retries exhausted → remaining `retrieve` + `writer` “compare LoRA vs QLoRA; DoRA without evidence.” Do not continue a Writer still asked to compare three as evidenced.
 - **CAP-02** — Caps: 1 retry per step; 1 replan per run (on top of retries). Parent `max_steps=8`, `max_papers=8`, timeout ~2 min still apply to the **whole** run, **including** steps added by replan. Exhaustion or cap → `insufficient`/`error`, no fabricated completion.
 
-**Coverage:** 11 total, 11 mapped in approved design; task mapping in `tasks.md` (draft pending approval).
+**Coverage:** 11 total, 11 mapped. LOOP-02 search-wave per-step feedback is persisted in `eval_by_step`. Independent Tests / live UAT still pending (B-001).
 
 ---
 

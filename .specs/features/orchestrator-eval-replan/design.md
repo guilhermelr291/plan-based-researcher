@@ -145,9 +145,10 @@ No `CONCERNS.md`. Mitigations for known fragility: never index `dict_row` by `0`
 - **Location**: `src/plan_based_researcher/agents/search.py`
 - **Interfaces**:
   - `SearchRunner.run(state) -> dict` — returns `search_artifacts: {step_index: SearchArtifact}`
-  - On retry: build a **new** arXiv query from `task` + that step’s eval `feedback` (`gpt-5-mini` structured rewrite; first attempt uses `task` as-is)
+  - **Always** formulate the arXiv `search_query` from the step `task` via `gpt-5-mini` structured output (`FormulatedQuery`, `json_schema`; English system prompt with arXiv API syntax + few-shots). Do **not** pass raw `task` or student `query` to `PaperPort.search`.
+  - On retry: formulate a **new** query from `task` + **that step’s** eval feedback (`eval_by_step[str(step_index)]`) + previous `query_used`
   - Apply allowlist + recency (or `historical`) before storing hits; respect remaining `max_papers` room only at **admission** time (eval), not by mutating `papers` here
-- **Dependencies**: `PaperPort`, planner `task` / `historical`, eval feedback
+- **Dependencies**: `PaperPort`, planner `task` / `historical`, `eval_by_step` feedback
 - **Reuses**: `ArxivPaperAdapter.search`; filter helpers in today’s `ResearcherRunner`
 
 ### Retrieve runner (RETR-01)
@@ -158,8 +159,8 @@ No `CONCERNS.md`. Mitigations for known fragility: never index `dict_row` by `0`
   - `RetrieveRunner.run(state) -> dict` — `evidence_chunks` numbered `[1…]`, `pgvector: "hit"|"miss"`, `last_agent: "retrieve"`
   - Cache miss → `load_pdf_text` → split 500/100 → embed → upsert (move loop from `researcher.py`)
   - Empty/unusable PDF → skip that paper (parent behavior)
-  - First attempt: retrieval query = step `task`
-  - Retry: rewrite retrieval query **in English** (`gpt-5-mini`) from task + feedback; **same** admitted paper set
+  - **Always** formulate an English hybrid retrieval query from the step `task` via `gpt-5-mini` structured output (`FormulatedQuery`, `json_schema`; English prompt, **no** arXiv syntax)
+  - On retry: formulate a **new** English query from task + that step’s eval feedback + previous `retrieve_query_used`; **same** admitted paper set
   - Call hybrid port; do not search arXiv
 - **Dependencies**: `PaperPort`, `ChunkRepository`, `EmbeddingPort`, hybrid adapter
 - **Reuses**: ingest + numbering from `ResearcherRunner`; Writer still consumes `evidence_chunks`
@@ -335,7 +336,9 @@ class GraphState(TypedDict):
     steps_executed: int
     search_artifacts: dict[str, SearchArtifact]  # merge by key, last write wins
     last_agent: str
-    last_eval: dict
+    last_eval: dict  # eval of the remaining head (first unpassed)
+    eval_by_step: dict[str, dict]  # merge by step key; per-step status/feedback (LOOP-02)
+    retrieve_query_used: str
     evidence_chunks: list[EvidenceChunk]
     writer_markdown: str
     citations: list[dict]
@@ -446,8 +449,8 @@ No `replan` event. No `answer_delta`.
 | BM25 corpus | `list_chunks` then in-memory BM25 | ≤8 papers; no library-wide lexical search |
 | New deps | Direct `langchain-classic`, `rank-bm25` | Ensemble import path in LangChain 1.3; BM25 extra |
 | Dispatch routing | `Command.goto` with `Send` list or `"execute"` | One interpreter node; no supervisor LLM |
-| Search retry query | Mini-model rewrite from task+feedback | Spec wants a **new** arXiv query; concat-only is weaker |
-| Retrieve retry query | Mini-model **English** rewrite | Spec-locked; first attempt may stay in student language |
+| Search / retrieve query | Mini-model structured formulate on **every** attempt (`FormulatedQuery` / `json_schema`; English prompts). Search uses arXiv API syntax; retrieve uses English keywords. Retry adds that step’s `eval_by_step` feedback. | `task` is the eval target, not a keyword query; raw task/student query is a weak arXiv/BM25 string |
+| Wave eval feedback | Persist `eval_by_step[str(i)]` per verdict; `last_eval` = remaining head | LOOP-02: a single `last_eval` made compare-wave retries use the wrong feedback |
 | Wave vs `max_steps` | Refuse to start an oversized wave | Do not silently drop a compare topic |
 
 ---
@@ -456,7 +459,7 @@ No `replan` event. No `answer_delta`.
 
 ```
 src/plan_based_researcher/
-  agents/{registry, factory, planner, search, retrieve, writer}  # researcher.py removed
+  agents/{registry, factory, planner, search, retrieve, writer, query_schema}  # researcher.py removed
   adapters/hybrid.py                                             # new
   graph/nodes/{dispatch, search, replan, execute, evaluate, ...}
   eval/{types, strategies}

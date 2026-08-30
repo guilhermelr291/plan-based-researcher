@@ -1,7 +1,7 @@
 # Orchestrator Eval and Remaining-Plan Replan Tasks
 
 **Design**: `.specs/features/orchestrator-eval-replan/design.md`  
-**Status**: Draft (pending approval)
+**Status**: Validation 2026-08-27 (uncommitted). T1–T24 implemented; LOOP-02 per-step `eval_by_step` and always-formulate search/retrieve queries added 2026-08-28.
 
 Automated tests (pytest, Testcontainers, e2e) are **out of scope**, same as v1. There is no `.specs/codebase/TESTING.md`. Done-when is implementation complete vs the approved design. Spec “Independent Test” lines stay as later manual UAT, not Execute work.
 
@@ -61,8 +61,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Both packages listed under `[project].dependencies`
-- [ ] Lockfile updated (`uv lock` / `uv sync`)
+- [x] Both packages listed under `[project].dependencies`
+- [x] Lockfile updated (`uv lock` / `uv sync`)
 
 **Tests**: none
 **Gate**: none
@@ -85,10 +85,10 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `max_retries_per_step == 1` (2 attempts with existing `count > cap` logic)
-- [ ] `max_replans == 1`
-- [ ] `hybrid_vector_weight == 0.7`, `hybrid_lexical_weight == 0.3`, `retrieve_k == 8`
-- [ ] `max_steps` / `max_papers` / splitter unchanged
+- [x] `max_retries_per_step == 1` (2 attempts with existing `count > cap` logic)
+- [x] `max_replans == 1`
+- [x] `hybrid_vector_weight == 0.7`, `hybrid_lexical_weight == 0.3`, `retrieve_k == 8`
+- [x] `max_steps` / `max_papers` / splitter unchanged
 
 **Tests**: none
 **Gate**: none
@@ -111,8 +111,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `EvalResult.status` still `pass|retry|fail`; `plan_inadequate: bool = False`
-- [ ] Wave types match design (`step_index`, `passed`, `plan_inadequate`, `feedback`, `verdicts`, `reasoning`)
+- [x] `EvalResult.status` still `pass|retry|fail`; `plan_inadequate: bool = False`
+- [x] Wave types match design (`step_index`, `passed`, `plan_inadequate`, `feedback`, `verdicts`, `reasoning`)
 
 **Tests**: none
 **Gate**: none
@@ -135,7 +135,7 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `ResearchPlan` has `steps` only (no reuse flag)
+- [x] `ResearchPlan` has `steps` only (no reuse flag)
 
 **Tests**: none
 **Gate**: none
@@ -158,11 +158,11 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `SearchHit` / `SearchArtifact` TypedDicts match design
-- [ ] `search_artifacts` uses last-write-wins dict merge (not `operator.add` on a list)
-- [ ] `retry_counts` keys are JSON-safe strings
-- [ ] `steps_executed` stays a plain int (no parallel add reducer)
-- [ ] Nodes can `.get()`-default new keys for old checkpoints
+- [x] `SearchHit` / `SearchArtifact` TypedDicts match design
+- [x] `search_artifacts` uses last-write-wins dict merge (not `operator.add` on a list)
+- [x] `retry_counts` keys are JSON-safe strings
+- [x] `steps_executed` stays a plain int (no parallel add reducer)
+- [x] Nodes can `.get()`-default new keys for old checkpoints
 
 **Tests**: none
 **Gate**: none
@@ -185,7 +185,7 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Protocol includes `list_chunks` with the design signature
+- [x] Protocol includes `list_chunks` with the design signature
 
 **Tests**: none
 **Gate**: none
@@ -208,11 +208,11 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `Role` includes `search` and `retrieve`, not `researcher`
-- [ ] `PLAN_AGENTS == frozenset({"search", "retrieve", "writer"})`
-- [ ] `planner_prompt_abilities()` emits only `PLAN_AGENTS`
-- [ ] `search` tools `("arxiv_search",)`; `retrieve` tools `("arxiv_load",)`; both `gpt-5-mini`
-- [ ] `writer` / `gate` / `planner` unchanged besides planner abilities text (no reuse flag)
+- [x] `Role` includes `search` and `retrieve`, not `researcher`
+- [x] `PLAN_AGENTS == frozenset({"search", "retrieve", "writer"})`
+- [x] `planner_prompt_abilities()` emits only `PLAN_AGENTS`
+- [x] `search` tools `("arxiv_search",)`; `retrieve` tools `("arxiv_load",)`; both `gpt-5-mini`
+- [x] `writer` / `gate` / `planner` unchanged besides planner abilities text (no reuse flag)
 
 **Tests**: none
 **Gate**: none
@@ -235,9 +235,9 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Empty `paper_keys` returns `[]`
-- [ ] Rows mapped by column name (not `row[0]`)
-- [ ] Ordered by `arxiv_id, version, chunk_index`
+- [x] Empty `paper_keys` returns `[]`
+- [x] Rows mapped by column name (not `row[0]`)
+- [x] Ordered by `arxiv_id, version, chunk_index`
 
 **Tests**: none
 **Gate**: none
@@ -260,9 +260,9 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Empty `paper_keys` returns `[]` without building retrievers
-- [ ] Weights from `Policy`; `ainvoke`; map back to `EvidenceChunk`
-- [ ] LangChain types stay in this adapter
+- [x] Empty `paper_keys` returns `[]` without building retrievers
+- [x] Weights from `Policy`; `ainvoke`; map back to `EvidenceChunk`
+- [x] LangChain types stay in this adapter
 
 **Tests**: none
 **Gate**: none
@@ -275,7 +275,7 @@ T24 may run in parallel with T22 (not with T23).
 
 ### T10: Search runner [P]
 
-**What**: `SearchRunner` searches arXiv for this step’s task; allowlist/recency; no PDF; no write to `papers`; retry = new query via mini rewrite.
+**What**: `SearchRunner` searches arXiv for this step’s task; allowlist/recency; no PDF; no write to `papers`; always formulate arXiv query via mini structured output.
 **Where**: `src/plan_based_researcher/agents/search.py`
 **Depends on**: T5, T7
 **Reuses**: filter helpers in `agents/researcher.py`; `PaperPort.search`
@@ -285,9 +285,9 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Returns `search_artifacts: {str(step_index): SearchArtifact}` only (not `papers`)
-- [ ] First attempt uses `task`; retry uses `gpt-5-mini` rewrite from task + feedback
-- [ ] Hits include title + abstract; no `load_pdf_text`
+- [x] Returns `search_artifacts: {str(step_index): SearchArtifact}` only (not `papers`)
+- [x] Every attempt formulates arXiv query via `gpt-5-mini` structured output from task (+ that step’s feedback on retry)
+- [x] Hits include title + abstract; no `load_pdf_text`
 
 **Tests**: none
 **Gate**: none
@@ -300,7 +300,7 @@ T24 may run in parallel with T22 (not with T23).
 
 ### T11: Retrieve runner
 
-**What**: Move ingest from researcher into `RetrieveRunner`; hybrid retrieve; English query rewrite on retry; number `[n]`.
+**What**: Move ingest from researcher into `RetrieveRunner`; hybrid retrieve; English query formulated on every attempt; number `[n]`.
 **Where**: `src/plan_based_researcher/agents/retrieve.py`
 **Depends on**: T5, T7, T9
 **Reuses**: ingest loop from `agents/researcher.py`
@@ -310,10 +310,11 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Uses `state["papers"]` only (admitted); no arXiv search
-- [ ] Cache miss → PDF → split 500/100 → embed → upsert
-- [ ] Hybrid `Policy.retrieve_k`; `pgvector` hit/miss; `last_agent: "retrieve"`
-- [ ] Retry rewrite is English; same paper set
+- [x] Uses `state["papers"]` only (admitted); no arXiv search
+- [x] Cache miss → PDF → split 500/100 → embed → upsert
+- [x] Hybrid `Policy.retrieve_k`; `pgvector` hit/miss; `last_agent: "retrieve"`
+- [x] Retry rewrite is English; same paper set
+- [x] Every attempt formulates an English hybrid query via structured output from the task
 
 **Tests**: none
 **Gate**: none
@@ -336,10 +337,10 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Initial prompt: explain / compare `search`×N / follow-up omit `search`
-- [ ] Invalid agent raises
-- [ ] `replan_remaining` input includes prefix summary, admitted papers, failed step + feedback, leftover steps
-- [ ] Replan output is suffix steps only; REPLAN-02 example in prompt (evidenced vs missing topics)
+- [x] Initial prompt: explain / compare `search`×N / follow-up omit `search`
+- [x] Invalid agent raises
+- [x] `replan_remaining` input includes prefix summary, admitted papers, failed step + feedback, leftover steps
+- [x] Replan output is suffix steps only; REPLAN-02 example in prompt (evidenced vs missing topics)
 
 **Tests**: none
 **Gate**: none
@@ -362,10 +363,10 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Wave eval: one structured `SearchWaveJudgement` call over artifacts in the wave (retry subset on retry)
-- [ ] Deterministic empty/allowlist/recency still feed that **one** call
-- [ ] Retrieve eval: chunks from admitted papers + semantic vs retrieve `task`
-- [ ] Writer eval unchanged grounding; retry uses same evidence (no new retrieve)
+- [x] Wave eval: one structured `SearchWaveJudgement` call over artifacts in the wave (retry subset on retry)
+- [x] Deterministic empty/allowlist/recency still feed that **one** call
+- [x] Retrieve eval: chunks from admitted papers + semantic vs retrieve `task`
+- [x] Writer eval unchanged grounding; retry uses same evidence (no new retrieve)
 
 **Tests**: none
 **Gate**: none
@@ -388,8 +389,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `create("search")` / `create("retrieve")` work; `create("researcher")` raises
-- [ ] Still no `if/elif` on names in graph nodes
+- [x] `create("search")` / `create("retrieve")` work; `create("researcher")` raises
+- [x] Still no `if/elif` on names in graph nodes
 
 **Tests**: none
 **Gate**: none
@@ -412,9 +413,9 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `search_wave_indices` takes consecutive unpassed searches from first unpassed index
-- [ ] Wave not started if `steps_executed + len(wave) > max_steps`
-- [ ] No supervisor LLM
+- [x] `search_wave_indices` takes consecutive unpassed searches from first unpassed index
+- [x] Wave not started if `steps_executed + len(wave) > max_steps`
+- [x] No supervisor LLM
 
 **Tests**: none
 **Gate**: none
@@ -437,8 +438,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] SSE `step_end` does not imply PDF
-- [ ] Worker returns artifact merge only (no `steps_executed`)
+- [x] SSE `step_end` does not imply PDF
+- [x] Worker returns artifact merge only (no `steps_executed`)
 
 **Tests**: none
 **Gate**: none
@@ -461,8 +462,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Dispatches `plan[first_unpassed].agent` (not a hardcoded researcher)
-- [ ] Search is not executed here
+- [x] Dispatches `plan[first_unpassed].agent` (not a hardcoded researcher)
+- [x] Search is not executed here
 
 **Tests**: none
 **Gate**: none
@@ -485,10 +486,10 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Pass adds index to `passed_steps`; failed search does not merge into `papers`
-- [ ] Mixed wave: later passed searches stay passed; remaining head is earliest unpassed
-- [ ] Writer pass → `outcome=done`; no writer pass at end of plan → `insufficient`
-- [ ] Route to `dispatch` | `replan` | `finalize`
+- [x] Pass adds index to `passed_steps`; failed search does not merge into `papers`
+- [x] Mixed wave: later passed searches stay passed; remaining head is earliest unpassed
+- [x] Writer pass → `outcome=done`; no writer pass at end of plan → `insufficient`
+- [x] Route to `dispatch` | `replan` | `finalize`
 
 **Tests**: none
 **Gate**: none
@@ -511,9 +512,9 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Passed prefix not re-executed; admitted papers kept
-- [ ] `step_index = len(prefix)`; new suffix retry counters 0
-- [ ] Existing `plan` event only (no new event name)
+- [x] Passed prefix not re-executed; admitted papers kept
+- [x] `step_index = len(prefix)`; new suffix retry counters 0
+- [x] Existing `plan` event only (no new event name)
 
 **Tests**: none
 **Gate**: none
@@ -536,8 +537,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `plan` SSE `data.steps` is the full initial list
-- [ ] No `reuse_existing_papers` in the event payload
+- [x] `plan` SSE `data.steps` is the full initial list
+- [x] No `reuse_existing_papers` in the event payload
 
 **Tests**: none
 **Gate**: none
@@ -560,8 +561,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] `_plan_text` does not mention `reuse_existing_papers`
-- [ ] Still does not import `plan_based_researcher.graph`
+- [x] `_plan_text` does not mention `reuse_existing_papers`
+- [x] Still does not import `plan_based_researcher.graph`
 
 **Tests**: none
 **Gate**: none
@@ -584,8 +585,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] Edges match design state diagram (`search` joins at `evaluate`; `evaluate` → dispatch | replan | finalize)
-- [ ] `ResearchEvalStrategy` not in `GraphDeps`
+- [x] Edges match design state diagram (`search` joins at `evaluate`; `evaluate` → dispatch | replan | finalize)
+- [x] `ResearchEvalStrategy` not in `GraphDeps`
 
 **Tests**: none
 **Gate**: none
@@ -608,8 +609,8 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] No `ResearchEvalStrategy` construct
-- [ ] Hybrid adapter (or retrieve runner) receives chunk repo + embeddings
+- [x] No `ResearchEvalStrategy` construct
+- [x] Hybrid adapter (or retrieve runner) receives chunk repo + embeddings
 
 **Tests**: none
 **Gate**: none
@@ -632,7 +633,7 @@ T24 may run in parallel with T22 (not with T23).
 
 **Done when**:
 
-- [ ] File removed; no remaining imports of `ResearcherRunner`
+- [x] File removed; no remaining imports of `ResearcherRunner`
 
 **Tests**: none
 **Gate**: none

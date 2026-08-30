@@ -1,7 +1,7 @@
 # State
 
-**Last Updated:** 2026-08-27
-**Current Work:** Feature `orchestrator-eval-replan` — tasks draft pending user approval (`.specs/features/orchestrator-eval-replan/tasks.md`). Spec and design approved. v1 UAT still pending (B-001).
+**Last Updated:** 2026-08-30
+**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001).
 
 ---
 
@@ -84,6 +84,27 @@
 **Trade-off:** Split roster (`search`/`retrieve` vs one `researcher`); stricter eval; one extra planner call per run at most.
 **Impact:** Spec and design approved 2026-08-27. Supersedes ORCH-01, ORCH-02, CAP-01 retry count, combined `researcher` plan step, and THR-02 `reuse_existing_papers` mechanism. Gate, SSE event names, Writer grounding (ORCH-03), Chainlit unchanged. Consecutive `search` steps may `Send` in parallel; semantic search eval is **one** structured LLM call per wave with **N independent verdicts** (SEARCH-02).
 
+### AD-013: Search/retrieve formulate the query; planner `task` is the goal (2026-08-28)
+
+**Decision:** The planner `task` is a natural-language research goal (eval target + UI). The search agent always formulates the arXiv `search_query` via structured output (`FormulatedQuery`, `json_schema`, English prompt with API syntax). The retrieve agent always formulates an English hybrid query the same way. Retry uses **that step’s** feedback from `eval_by_step`, not a shared `last_eval`. Prompts are English; student `task`/feedback may be another language as input data.
+**Reason:** Passing raw `task` (or the student query) to keyword arXiv / BM25 is weak; query writing belongs to the specialist agent. Wave retry was using the last verdict’s feedback (LOOP-02).
+**Trade-off:** One extra `gpt-5-mini` call per search/retrieve attempt (including first try).
+**Impact:** SEARCH-01 / RETR-01 / LOOP-02 updated. Planner abilities tell the planner not to emit arXiv syntax in `task`.
+
+### AD-014: Admission 1/topic, per-paper retrieve, S8a / T1–T3 (2026-08-29)
+
+**Decision:** One usable paper per passed search ranking. Wave judge returns a clipped ranking; uniqueness is champion-only at eval (U1); `papers` are written only after PDF ingest. Retrieve is hybrid per paper with `k=3`. Search attempt 1 always retries (`plan_inadequate` ignored for routing). Attempt 2 replan reuses `plan_inadequate` (S8a: no new search vs corrected search). Retrieve T1/T2a skip query retry; T2a hybrid on living papers then writer-only replan; T3 attempt 1 always retries the query (R2). Writer must not fill a missing topic from model weights (WRITE-02).
+**Reason:** Grill-me 2026-08-28/29. FIFO lot admission and a single retrieve `k` starve compare topics; parametric fill would break grounded generation.
+**Trade-off:** One angle per topic; T1 may spend the only replan then `insufficient`; `plan_inadequate` is overloaded on search attempt 2.
+**Impact:** Spec `.specs/features/admission-retrieve-per-topic/spec.md` (approved 2026-08-29). Design `.specs/features/admission-retrieve-per-topic/design.md` (approved 2026-08-29). Supersedes SEARCH-01 admission, SEARCH-02 verdict shape, RETR-01 global `k`, LOOP-03 on search attempt 1. Routing atlas in `graph-flow.md`.
+
+### AD-015: Admission/retrieve design locks (2026-08-29)
+
+**Decision:** Approve `.specs/features/admission-retrieve-per-topic/design.md` as written. `SearchStepVerdict.ranked_keys` is `list[PaperKey]`; clip + U1 are runtime (`eval/admission.py`). `papers` are written only after retrieve ingest. Hybrid is N calls of the existing adapter with `retrieve_k_per_paper=3`. Search API pool is `search_max_results=8` (not `max_papers`). Search attempt 1 always retries (`plan_inadequate` ignored for the edge). T1/T2a skip the retrieve mini-judge. T3 query miss always retries once. S8a stays on `plan_inadequate` per leftover search. WRITE-02 is prompt + writer judge. No new graph nodes.
+**Reason:** User approved spec + design 2026-08-29.
+**Trade-off:** `plan_inadequate` stays overloaded; T1 may spend the only replan then `insufficient`.
+**Impact:** Tasks and implementation must follow that design. Do not reintroduce lot admission at search eval or union `retrieve_k`.
+
 ### AD-012: Eval-replan design locks (2026-08-27)
 
 **Decision:** Approve `.specs/features/orchestrator-eval-replan/design.md`. Search waves use LangGraph `Send` and admit papers only after eval pass. Hybrid retrieve is `EnsembleRetriever` RRF weights 0.7/0.3 (`langchain-classic` + BM25), not linear score fusion. Follow-up omits `search` (drop `reuse_existing_papers`). `Policy.max_retries_per_step=1`, `max_replans=1`. Mixed-wave remaining head is the earliest unpassed step; later passed searches are not rerun.
@@ -110,6 +131,9 @@
 - Parallel `[P]` tasks cannot each `git commit` safely; implement in parallel, then serialize atomic commits on the orchestrator.
 - Sharing one psycopg pool with `AsyncPostgresSaver` (`dict_row`) means app SQL must read rows by column name (or set `tuple_row` on those cursors). Indexing `row[0]` crashes on cache hit and on RAG `fetchall`.
 - On Windows, psycopg async cannot use the default `ProactorEventLoop`; smoke/scripts need `WindowsSelectorEventLoopPolicy` (uvicorn typically already uses a compatible loop).
+- LangGraph 1.x compiled graphs only persist keys declared on `GraphState`. A routing field such as `eval_next` must be on the TypedDict or evaluate→replan is dropped and the loop always dispatches.
+- Search-wave eval emits N `eval` SSE frames but `_evaluate_wave` used to keep a single `last_eval` (last verdict). Fixed 2026-08-28: persist `eval_by_step` per index; search/retrieve retry reads that step’s feedback.
+- Remaining-only replan compacting prefix to `passed_steps=range(len(prefix))` is safe only if every index-keyed map (`search_artifacts`, `eval_by_step`, `retrieve_ingest.gap_step_indices`) is remapped or stored by task identity. This feature made retrieve depend on `search_artifacts[str(plan_index)]`; mixed-wave S8a then walks the wrong ranking.
 
 ---
 
@@ -118,6 +142,7 @@
 | #   | Description | Date | Commit | Status |
 | --- | ----------- | ---- | ------ | ------ |
 | 001 | Install v1 stack (FastAPI, LangGraph, LangChain, OpenAI, Tavily) via uv | 2026-08-25 | — | ✅ Done |
+| 002 | Script to draw compiled LangGraph as Mermaid PNG | 2026-08-30 | — | ✅ Done |
 
 ---
 
@@ -145,11 +170,21 @@
 - [x] Fix: `PgChunkRepository` row mapping under `dict_row` (ARX-03 / EMB-01)
 - [x] Fix: `CREATE TABLE` / `CREATE INDEX` `IF NOT EXISTS` on API restart (RUN-01)
 - [x] Fix: researcher retry uses `last_eval.feedback`; `citations[]` only used `[n]`
-- [ ] Manual UAT: in-domain SSE, out-of-domain gate, Chainlit `[n]` side panel, follow-up omit-search (needs free Postgres port)
 - [x] User approve `.specs/features/orchestrator-eval-replan/spec.md`
 - [x] User approve `.specs/features/orchestrator-eval-replan/design.md` before Tasks
 - [x] After spec+design approval: update PROJECT.md caps (`max_retries_per_step` → 1 retry / 2 attempts; add `max_replans=1`) and parent spec superseded IDs
-- [ ] User approve `.specs/features/orchestrator-eval-replan/tasks.md` before Execute
+- [x] User approve `.specs/features/orchestrator-eval-replan/tasks.md` before Execute
+- [x] Execute T1–T24 for `orchestrator-eval-replan` (uncommitted; user asked not to commit)
+- [x] Fix LOOP-02: persist per-step eval feedback so search-wave retries rewrite from that step’s verdict (see validation report)
+- [ ] Manual UAT: in-domain SSE, out-of-domain gate, Chainlit `[n]` side panel, follow-up omit-search (needs free Postgres port)
+- [ ] Manual UAT: admission 1/topic, per-paper k=3, LOOP-04/05, T1/T2a/T3, WRITE-02 (needs free Postgres port)
+- [ ] Atomic commits per task T1–T24 when the user asks to commit (partially mixed into admission commits for files those tasks share)
+- [x] User requested Design for `admission-retrieve-per-topic` (2026-08-29; spec still draft)
+- [x] User approve `.specs/features/admission-retrieve-per-topic/spec.md` and `design.md` before Tasks
+- [x] User asked to Execute `.specs/features/admission-retrieve-per-topic/tasks.md` (2026-08-30)
+- [x] Execute T1–T15 for `admission-retrieve-per-topic`
+- [x] Fix: replan prefix packing remaps `search_artifacts` / `eval_by_step` to new indices (mixed-wave S8a)
+- [x] Fix: Writer living/missing must survive replan (store hole **tasks**, exclude gaps from living)
 
 ---
 

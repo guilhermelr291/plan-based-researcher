@@ -47,4 +47,4 @@
 - LLM and embeddings: OpenAI only.
 - Evidence: arXiv only; category allowlist `cs.AI`, `cs.LG`, `cs.CL`, `cs.CV`, `cs.NE`, `cs.RO`, `stat.ML`.
 - Caps: `max_steps=8`, **1 retry per step (2 attempts)**, `max_replans=1`, `max_papers=8`, timeout ~2 minutes.
-- Splitter: 500 / 100. Feature spec: `.specs/features/arxiv-grounded-research/spec.md` (v1; loop IDs superseded by orchestrator-eval-replan). Loop spec: `.specs/features/orchestrator-eval-replan/spec.md`. Architecture: `.specs/features/arxiv-grounded-research/context.md`.
+- Splitter: 500 / 100. Feature spec: `.specs/features/arxiv-grounded-research/spec.md` (v1; loop IDs superseded by orchestrator-eval-replan). Loop spec: `.specs/features/orchestrator-eval-replan/spec.md`. Admission/retrieve amendment: `.specs/features/admission-retrieve-per-topic/spec.md` + `design.md` (approved 2026-08-29). Architecture: `.specs/features/arxiv-grounded-research/context.md`.
