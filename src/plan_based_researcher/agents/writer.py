@@ -7,12 +7,13 @@ import re
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
+from plan_based_researcher.agents.query_schema import step_eval_feedback
 from plan_based_researcher.agents.registry import REGISTRY
 from plan_based_researcher.api.schemas import Citation
 from plan_based_researcher.graph.state import EvidenceChunk, GraphState
 from plan_based_researcher.policy import Policy
 
-__all__ = ["WriterOutput", "WriterRunner"]
+__all__ = ["WriterOutput", "WriterRunner", "living_and_missing"]
 
 _CITATION_RE = re.compile(r"\[(\d+)\]")
 
@@ -73,6 +74,164 @@ def _citations_from_chunks(chunks: list[EvidenceChunk], ns: list[int]) -> list[d
     return citations
 
 
+def _paper_key(item: object) -> tuple[str, str] | None:
+    if isinstance(item, dict):
+        arxiv_id = item.get("arxiv_id")
+        if not arxiv_id:
+            return None
+        return str(arxiv_id), str(item.get("version") or "")
+    arxiv_id = getattr(item, "arxiv_id", None)
+    if not arxiv_id:
+        return None
+    return str(arxiv_id), str(getattr(item, "version", None) or "")
+
+
+def _paper_key_set(papers: object) -> set[tuple[str, str]]:
+    keys: set[tuple[str, str]] = set()
+    if not isinstance(papers, list):
+        return keys
+    for paper in papers:
+        key = _paper_key(paper)
+        if key is not None:
+            keys.add(key)
+    return keys
+
+
+def _passed_indices(state: dict) -> set[int]:
+    passed: set[int] = set()
+    for item in state.get("passed_steps") or []:
+        try:
+            passed.add(int(item))
+        except (TypeError, ValueError):
+            continue
+    return passed
+
+
+def _step_artifact(artifacts: object, index: int) -> dict:
+    if not isinstance(artifacts, dict):
+        return {}
+    artifact = artifacts.get(str(index))
+    if artifact is None:
+        artifact = artifacts.get(index)
+    return artifact if isinstance(artifact, dict) else {}
+
+
+def _ingested_key(
+    artifacts: object, index: int, papers: set[tuple[str, str]]
+) -> tuple[str, str] | None:
+    ranked = _step_artifact(artifacts, index).get("ranked_keys") or []
+    if not isinstance(ranked, list):
+        return None
+    for item in ranked:
+        key = _paper_key(item)
+        if key is not None and key in papers:
+            return key
+    return None
+
+
+def _ns_for_key(chunks: object, key: tuple[str, str]) -> list[int]:
+    ns: list[int] = []
+    seen: set[int] = set()
+    if not isinstance(chunks, list):
+        return ns
+    for chunk in chunks:
+        if not isinstance(chunk, dict):
+            continue
+        if _paper_key(chunk) != key:
+            continue
+        try:
+            n = int(chunk["n"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if n not in seen:
+            seen.add(n)
+            ns.append(n)
+    return ns
+
+
+def living_and_missing(state: dict) -> tuple[list[dict], list[dict]]:
+    """Return (living, missing).
+    living item: {"task": str, "arxiv_id": str, "version": str, "ns": list[int]}
+    missing item: {"task": str, "reason": "unpassed" | "gap"}
+    """
+    plan = state.get("plan") or []
+    if not isinstance(plan, list):
+        plan = []
+    passed = _passed_indices(state)
+    papers = _paper_key_set(state.get("papers"))
+    artifacts = state.get("search_artifacts") or {}
+    chunks = state.get("evidence_chunks") or []
+
+    living: list[dict] = []
+    missing: list[dict] = []
+    missing_indices: set[int] = set()
+
+    for index, step in enumerate(plan):
+        if not isinstance(step, dict) or step.get("agent") != "search":
+            continue
+        task = str(step.get("task") or "")
+        if index not in passed:
+            missing.append({"task": task, "reason": "unpassed"})
+            missing_indices.add(index)
+            continue
+        ingested = _ingested_key(artifacts, index, papers)
+        if ingested is None:
+            continue
+        ns = _ns_for_key(chunks, ingested)
+        if len(ns) < 1:
+            continue
+        living.append(
+            {
+                "task": task,
+                "arxiv_id": ingested[0],
+                "version": ingested[1],
+                "ns": ns,
+            }
+        )
+
+    ingest = state.get("retrieve_ingest") or {}
+    if not isinstance(ingest, dict):
+        ingest = {}
+    for raw in ingest.get("gap_step_indices") or []:
+        try:
+            index = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if index in missing_indices or index < 0 or index >= len(plan):
+            continue
+        step = plan[index]
+        if not isinstance(step, dict) or step.get("agent") != "search":
+            continue
+        missing.append({"task": str(step.get("task") or ""), "reason": "gap"})
+        missing_indices.add(index)
+
+    return living, missing
+
+
+def _format_coverage(living: list[dict], missing: list[dict]) -> str:
+    if living:
+        living_body = "\n".join(
+            f"- {item['task']} arXiv:{item['arxiv_id']}v{item['version']} "
+            f"{' '.join(f'[{n}]' for n in item['ns'])}"
+            for item in living
+        )
+    else:
+        living_body = "(none)"
+    if missing:
+        missing_body = "\n".join(
+            f"- {item['task']} ({item['reason']})" for item in missing
+        )
+    else:
+        missing_body = "(none)"
+    return (
+        "Living topics (cite these [n] only for those topics):\n"
+        f"{living_body}\n\n"
+        "Missing topics (announce no usable paper; do not define/compare from memory; "
+        "do not cite living [n] as the missing topic):\n"
+        f"{missing_body}"
+    )
+
+
 def _language(state: GraphState) -> str:
     gate = state.get("gate") or {}
     return str(gate.get("language") or "")
@@ -90,14 +249,18 @@ def _current_task(state: GraphState) -> str:
 
 
 def _eval_feedback(state: GraphState) -> str:
-    last_eval = state.get("last_eval") or {}
-    return str(last_eval.get("feedback") or "")
+    index = state.get("step_index") or 0
+    try:
+        return step_eval_feedback(state, int(index))
+    except (TypeError, ValueError):
+        return str((state.get("last_eval") or {}).get("feedback") or "")
 
 
 def _system_prompt() -> str:
     return (
         f"{REGISTRY['writer'].abilities}\n\n"
         f"Grounding rule: {Policy.GROUNDING_RULE}.\n\n"
+        f"Hole rule: {Policy.HOLE_RULE}.\n\n"
         "You are given a numbered list of arXiv evidence chunks formatted as [n] blocks. "
         "Cite only those [n] values; never invent indices or non-arXiv sources. "
         "Every technical claim needs a real [n]. "
@@ -120,6 +283,8 @@ def _user_prompt(state: GraphState, formatted_chunks: str) -> str:
         parts.append(f"Current writing task:\n{task}")
     if feedback:
         parts.append(f"Evaluator feedback (honor this on retry):\n{feedback}")
+    living, missing = living_and_missing(state)
+    parts.append(_format_coverage(living, missing))
     parts.append(f"Evidence chunks:\n{formatted_chunks}")
     return "\n\n".join(parts)
 
