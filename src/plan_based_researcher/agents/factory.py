@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from plan_based_researcher.adapters.hybrid import HybridRetrievePort
 from plan_based_researcher.agents.gate import GateRunner
 from plan_based_researcher.agents.planner import PlannerRunner
-from plan_based_researcher.agents.researcher import ResearcherRunner
+from plan_based_researcher.agents.retrieve import RetrieveRunner
+from plan_based_researcher.agents.search import SearchRunner
 from plan_based_researcher.agents.writer import WriterRunner
 from plan_based_researcher.ports.chunks import ChunkRepository
 from plan_based_researcher.ports.embeddings import EmbeddingPort
@@ -25,12 +27,14 @@ class AgentFactory:
         papers: PaperPort,
         chunks: ChunkRepository,
         embeddings: EmbeddingPort,
+        hybrid: HybridRetrievePort,
         api_key: str | None = None,
     ) -> None:
         self._runners: dict[str, AgentRunner] = {
             "gate": GateRunner(api_key=api_key),
             "planner": PlannerRunner(api_key=api_key),
-            "researcher": ResearcherRunner(papers, chunks, embeddings),
+            "search": SearchRunner(papers, api_key=api_key),
+            "retrieve": RetrieveRunner(papers, chunks, embeddings, hybrid, api_key=api_key),
             "writer": WriterRunner(api_key=api_key),
         }
 

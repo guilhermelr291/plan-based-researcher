@@ -143,7 +143,11 @@ def _step_end_output(data: dict) -> str:
     pgvector = data.get("pgvector", "unknown")
     paper_ids = data.get("paper_ids") or []
     papers = ", ".join(str(pid) for pid in paper_ids) if paper_ids else "(none)"
-    return f"pgvector: {pgvector}\npaper_ids: {papers}"
+    query_used = str(data.get("query_used") or "").strip()
+    lines = [f"pgvector: {pgvector}", f"paper_ids: {papers}"]
+    if query_used:
+        lines.append(f"query_used: {query_used}")
+    return "\n".join(lines)
 
 
 def _plan_text(data: dict) -> str:
@@ -151,8 +155,6 @@ def _plan_text(data: dict) -> str:
     if not isinstance(steps, list):
         return json.dumps(data, ensure_ascii=False, indent=2)
     lines: list[str] = []
-    if data.get("reuse_existing_papers"):
-        lines.append("Reuse existing papers.")
     for i, item in enumerate(steps, start=1):
         if not isinstance(item, dict):
             lines.append(f"{i}. {item}")

@@ -30,7 +30,6 @@ class PlanStep(BaseModel):
 
 class ResearchPlan(BaseModel):
     steps: list[PlanStep]
-    reuse_existing_papers: bool = False
 
 
 class GateDecision(BaseModel):

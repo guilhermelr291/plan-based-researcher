@@ -16,11 +16,13 @@ def make_planner_node(factory: AgentFactory):
             "event": "plan",
             "data": {
                 "steps": update.get("plan") or [],
-                "reuse_existing_papers": update.get("reuse_existing_papers", False),
             },
         })
         update.setdefault("step_index", 0)
+        update.setdefault("passed_steps", [])
+        update.setdefault("retry_counts", {})
         update.setdefault("retry_count", 0)
+        update.setdefault("replan_used", False)
         update.setdefault("steps_executed", 0)
         return update
 
