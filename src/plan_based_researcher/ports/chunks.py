@@ -42,3 +42,8 @@ class ChunkRepository(Protocol):
         paper_keys: list[tuple[str, str]],
         k: int,
     ) -> list[EvidenceChunk]: ...
+
+    async def list_chunks(
+        self,
+        paper_keys: list[tuple[str, str]],
+    ) -> list[EvidenceChunk]: ...

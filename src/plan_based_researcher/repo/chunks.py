@@ -84,6 +84,24 @@ ORDER BY c.embedding <=> %s
 LIMIT %s
 """
 
+_LIST_CHUNKS_SQL = """
+SELECT
+  c.chunk_id,
+  c.arxiv_id,
+  c.version,
+  p.title,
+  p.year,
+  p.url,
+  c.content
+FROM chunks AS c
+JOIN papers AS p
+  ON p.arxiv_id = c.arxiv_id AND p.version = c.version
+WHERE (c.arxiv_id, c.version) IN (
+  SELECT * FROM unnest(%s::text[], %s::text[]) AS t(arxiv_id, version)
+)
+ORDER BY c.arxiv_id, c.version, c.chunk_index
+"""
+
 
 def _schema_statements(sql: str) -> list[str]:
     return [part.strip() for part in sql.split(";") if part.strip()]
@@ -187,5 +205,19 @@ class PgChunkRepository:
                 _SIMILARITY_SEARCH_SQL,
                 (ids, vers, Vector(query_embedding), k),
             )
+            rows = await cur.fetchall()
+        return [_chunk_from_row(row) for row in rows]
+
+    async def list_chunks(
+        self,
+        paper_keys: list[tuple[str, str]],
+    ) -> list[EvidenceChunk]:
+        if not paper_keys:
+            return []
+        ids = [key[0] for key in paper_keys]
+        vers = [key[1] for key in paper_keys]
+        async with self._pool.connection() as conn:
+            await register_vector_async(conn)
+            cur = await conn.execute(_LIST_CHUNKS_SQL, (ids, vers))
             rows = await cur.fetchall()
         return [_chunk_from_row(row) for row in rows]
