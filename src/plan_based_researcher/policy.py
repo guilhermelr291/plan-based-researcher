@@ -20,13 +20,24 @@ class Policy:
         }
     )
     max_steps: int = 8
-    max_retries_per_step: int = 2
+    max_retries_per_step: int = 1
+    max_replans: int = 1
     max_papers: int = 8
     recency_years: int = 5
     chunk_size: int = 500
     chunk_overlap: int = 100
+    hybrid_vector_weight: float = 0.7
+    hybrid_lexical_weight: float = 0.3
+    search_max_results: int = 8
+    retrieve_k_per_paper: int = 3
     GROUNDING_RULE: str = (
         "every technical claim has a real [n] citation from the provided chunk list"
+    )
+    HOLE_RULE: str = (
+        'an absence sentence ("no usable paper was found for {topic}") needs no [n]; '
+        "technical claims about a topic need chunks from that topic's paper; "
+        "do not fill missing topics from parametric knowledge; "
+        "do not cite another method's chunks as the missing topic"
     )
 
     @classmethod
