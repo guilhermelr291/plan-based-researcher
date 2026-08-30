@@ -26,14 +26,22 @@ def _initial_state(request: ResearchRequest) -> dict[str, Any]:
         "papers": [],
         "plan": [],
         "step_index": 0,
+        "passed_steps": [],
+        "retry_counts": {},
         "retry_count": 0,
+        "replan_used": False,
         "steps_executed": 0,
+        "search_artifacts": {},
         "last_agent": "",
         "last_eval": {},
+        "eval_by_step": {},
+        "retrieve_query_used": "",
+        "retrieve_ingest": {"case": "t3", "gap_step_indices": [], "walked": False},
         "evidence_chunks": [],
         "writer_markdown": "",
         "citations": [],
         "outcome": "pending",
+        "eval_next": "dispatch",
         "gate": {},
         "error_message": "",
         "reuse_existing_papers": False,
@@ -119,6 +127,7 @@ async def research(
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="thread_id is required") from None
+    
     research_request = _parse_research_request(body)
     timeout_seconds = int(getattr(settings, "research_timeout_seconds", 120))
     return StreamingResponse(
