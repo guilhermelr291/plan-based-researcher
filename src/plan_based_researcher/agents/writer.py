@@ -162,17 +162,55 @@ def living_and_missing(state: dict) -> tuple[list[dict], list[dict]]:
     artifacts = state.get("search_artifacts") or {}
     chunks = state.get("evidence_chunks") or []
 
-    living: list[dict] = []
     missing: list[dict] = []
-    missing_indices: set[int] = set()
+    missing_tasks: set[str] = set()
+
+    def add_missing(task: str, reason: str) -> None:
+        task = task.strip()
+        if not task or task in missing_tasks:
+            return
+        missing.append({"task": task, "reason": reason})
+        missing_tasks.add(task)
 
     for index, step in enumerate(plan):
         if not isinstance(step, dict) or step.get("agent") != "search":
             continue
-        task = str(step.get("task") or "")
         if index not in passed:
-            missing.append({"task": task, "reason": "unpassed"})
-            missing_indices.add(index)
+            add_missing(str(step.get("task") or ""), "unpassed")
+
+    for item in state.get("hole_tasks") or []:
+        if not isinstance(item, dict):
+            continue
+        reason = str(item.get("reason") or "gap")
+        if reason not in ("unpassed", "gap"):
+            reason = "gap"
+        add_missing(str(item.get("task") or ""), reason)
+
+    ingest = state.get("retrieve_ingest") or {}
+    if not isinstance(ingest, dict):
+        ingest = {}
+    for raw_task in ingest.get("gap_tasks") or []:
+        add_missing(str(raw_task), "gap")
+    for raw in ingest.get("gap_step_indices") or []:
+        try:
+            index = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if index < 0 or index >= len(plan):
+            continue
+        step = plan[index]
+        if not isinstance(step, dict) or step.get("agent") != "search":
+            continue
+        add_missing(str(step.get("task") or ""), "gap")
+
+    living: list[dict] = []
+    for index, step in enumerate(plan):
+        if not isinstance(step, dict) or step.get("agent") != "search":
+            continue
+        if index not in passed:
+            continue
+        task = str(step.get("task") or "")
+        if task.strip() in missing_tasks:
             continue
         ingested = _ingested_key(artifacts, index, papers)
         if ingested is None:
@@ -188,22 +226,6 @@ def living_and_missing(state: dict) -> tuple[list[dict], list[dict]]:
                 "ns": ns,
             }
         )
-
-    ingest = state.get("retrieve_ingest") or {}
-    if not isinstance(ingest, dict):
-        ingest = {}
-    for raw in ingest.get("gap_step_indices") or []:
-        try:
-            index = int(raw)
-        except (TypeError, ValueError):
-            continue
-        if index in missing_indices or index < 0 or index >= len(plan):
-            continue
-        step = plan[index]
-        if not isinstance(step, dict) or step.get("agent") != "search":
-            continue
-        missing.append({"task": str(step.get("task") or ""), "reason": "gap"})
-        missing_indices.add(index)
 
     return living, missing
 

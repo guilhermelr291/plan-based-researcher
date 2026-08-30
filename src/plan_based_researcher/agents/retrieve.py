@@ -14,7 +14,7 @@ from plan_based_researcher.agents.query_schema import (
     step_eval_feedback,
 )
 from plan_based_researcher.agents.registry import REGISTRY
-from plan_based_researcher.graph.state import merge_papers
+from plan_based_researcher.graph.state import merge_hole_tasks, merge_papers
 from plan_based_researcher.policy import Policy
 from plan_based_researcher.ports.chunks import ChunkRepository, PaperRecord
 from plan_based_researcher.ports.embeddings import EmbeddingPort
@@ -189,9 +189,13 @@ class RetrieveRunner:
 
         newly_admitted: list[dict] = []
         gap_step_indices: list[int] = []
+        gap_tasks: list[str] = []
         walked = False
         any_miss = False
         skip_walk = True
+        plan = state.get("plan") or []
+        if not isinstance(plan, list):
+            plan = []
 
         if retry > 0:
             skip_walk = True
@@ -254,18 +258,28 @@ class RetrieveRunner:
                     break
                 if not admitted_one:
                     gap_step_indices.append(i)
+                    if 0 <= i < len(plan) and isinstance(plan[i], dict):
+                        gap_task = str(plan[i].get("task") or "").strip()
+                        if gap_task:
+                            gap_tasks.append(gap_task)
             merged = merge_papers(state.get("papers") or [], newly_admitted)
 
         ingest = {
             "gap_step_indices": gap_step_indices,
+            "gap_tasks": gap_tasks,
             "walked": walked,
         }
+        holes = merge_hole_tasks(
+            state.get("hole_tasks"),
+            [{"task": task, "reason": "gap"} for task in gap_tasks],
+        )
         if not merged:
             result = {
                 "evidence_chunks": [],
                 "retrieve_query_used": "",
                 "last_agent": "retrieve",
                 "retrieve_ingest": {**ingest, "case": "t1"},
+                "hole_tasks": holes,
                 "pgvector": "miss" if any_miss else "hit",
             }
             if not skip_walk and newly_admitted:
@@ -302,6 +316,7 @@ class RetrieveRunner:
             "last_agent": "retrieve",
             "pgvector": "miss" if any_miss else "hit",
             "retrieve_ingest": {**ingest, "case": case},
+            "hole_tasks": holes,
         }
         if not skip_walk and newly_admitted:
             result["papers"] = newly_admitted

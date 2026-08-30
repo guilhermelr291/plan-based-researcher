@@ -17,6 +17,7 @@ __all__ = [
     "SearchArtifact",
     "SearchHit",
     "merge_eval_by_step",
+    "merge_hole_tasks",
     "merge_papers",
     "merge_search_artifacts",
 ]
@@ -56,6 +57,7 @@ class SearchArtifact(TypedDict):
 class RetrieveIngestReport(TypedDict):
     case: Literal["t1", "t2a", "t3"]
     gap_step_indices: list[int]
+    gap_tasks: NotRequired[list[str]]
     walked: bool
 
 
@@ -97,6 +99,30 @@ def merge_eval_by_step(
     return {**(existing or {}), **(new or {})}
 
 
+def merge_hole_tasks(existing: object, extras: list | None = None) -> list[dict]:
+    """Dedupe hole rows by task text; keep first reason (WRITE-02)."""
+    result: list[dict] = []
+    seen: set[str] = set()
+    sequences: list = []
+    if isinstance(existing, list):
+        sequences.append(existing)
+    if extras:
+        sequences.append(extras)
+    for source in sequences:
+        for item in source:
+            if not isinstance(item, dict):
+                continue
+            task = str(item.get("task") or "").strip()
+            if not task or task in seen:
+                continue
+            reason = str(item.get("reason") or "gap")
+            if reason not in ("unpassed", "gap"):
+                reason = "gap"
+            seen.add(task)
+            result.append({"task": task, "reason": reason})
+    return result
+
+
 class GraphState(TypedDict):
     query: str
     messages: Annotated[list, add_messages]
@@ -114,6 +140,8 @@ class GraphState(TypedDict):
     eval_by_step: Annotated[dict[str, dict], merge_eval_by_step]
     retrieve_query_used: str
     retrieve_ingest: RetrieveIngestReport
+    # hole_tasks survive remaining replan (task text, not plan index) for WRITE-02.
+    hole_tasks: list[dict]
     evidence_chunks: list[EvidenceChunk]
     writer_markdown: str
     citations: list[dict]
