@@ -1,4 +1,4 @@
-"""Evaluate node: wave vs step eval, admit, retry, replan (LOOP-01–03, SEARCH-01–02, CAP-02, WRITE-01)."""
+"""Evaluate node: wave vs step eval, admit, retry, replan (LOOP-01–05, SEARCH-01–02, CAP-02, WRITE-01, RETR-04)."""
 
 from __future__ import annotations
 
@@ -168,6 +168,46 @@ def _retry_status(retry_counts: dict, index: int) -> tuple[_Status, bool, bool]:
     return "retry", False, True
 
 
+def _retrieve_case(state: GraphState) -> str:
+    ingest = state.get("retrieve_ingest") or {}
+    if not isinstance(ingest, dict):
+        return ""
+    return str(ingest.get("case") or "")
+
+
+def _chunk_key(chunk: dict) -> tuple[str, str] | None:
+    aid = chunk.get("arxiv_id")
+    if not aid:
+        return None
+    version = chunk.get("version")
+    return (str(aid), str(version if version is not None else ""))
+
+
+def _t3_query_miss(state: GraphState, result: EvalResult) -> bool:
+    """Empty chunks, foreign chunk, or off-task (not paper-set inadequate)."""
+    chunks = state.get("evidence_chunks") or []
+    if not isinstance(chunks, list) or not chunks:
+        return True
+    admitted: set[tuple[str, str]] = set()
+    papers = state.get("papers") or []
+    if isinstance(papers, list):
+        for paper in papers:
+            if isinstance(paper, dict) and paper.get("arxiv_id"):
+                version = paper.get("version")
+                admitted.add(
+                    (str(paper["arxiv_id"]), str(version if version is not None else ""))
+                )
+    for chunk in chunks:
+        if not isinstance(chunk, dict):
+            return True
+        key = _chunk_key(chunk)
+        if key is None or key not in admitted:
+            return True
+    if result.plan_inadequate:
+        return False
+    return True
+
+
 def make_evaluate_node(
     search_eval: SearchEvalStrategy,
     retrieve_eval: RetrieveEvalStrategy,
@@ -291,6 +331,12 @@ def _evaluate_step(
             passed_steps.append(idx)
         if agent == "writer":
             writer_just_passed = True
+    elif agent == "retrieve" and _retrieve_case(state) == "t3":
+        if _t3_query_miss(state, result):
+            status, need_replan, need_retry = _retry_status(retry_counts, idx)
+        else:
+            status = "fail"
+            need_replan = True
     elif result.plan_inadequate:
         status = "fail"
         need_replan = True
