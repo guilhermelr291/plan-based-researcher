@@ -16,6 +16,7 @@ __all__ = [
     "RetrieveIngestReport",
     "SearchArtifact",
     "SearchHit",
+    "last_write",
     "merge_eval_by_step",
     "merge_hole_tasks",
     "merge_papers",
@@ -70,6 +71,13 @@ class EvidenceChunk(TypedDict):
     year: int
     url: str
     excerpt: str
+
+
+def last_write(existing: str | None, new: str | None) -> str:
+    """Last write wins so parallel Send workers can set the same scalar."""
+    if new is not None:
+        return new
+    return existing or ""
 
 
 def merge_papers(
@@ -135,7 +143,7 @@ class GraphState(TypedDict):
     replan_used: bool
     steps_executed: int
     search_artifacts: Annotated[dict[str, SearchArtifact], merge_search_artifacts]
-    last_agent: str
+    last_agent: Annotated[str, last_write]
     last_eval: dict
     eval_by_step: Annotated[dict[str, dict], merge_eval_by_step]
     retrieve_query_used: str
