@@ -16,10 +16,18 @@ __all__ = [
 ]
 
 
+def _norm_version(version: object) -> str:
+    """Strip a leading v from numeric versions so judge 'v1' matches hit '1'."""
+    raw = str(version if version is not None else "")
+    if len(raw) >= 2 and raw[0] in "vV" and raw[1:].isdigit():
+        return raw[1:]
+    return raw
+
+
 def hit_key(hit: dict) -> tuple[str, str]:
     """(arxiv_id, str(version))."""
     version = hit.get("version")
-    return (str(hit["arxiv_id"]), str(version) if version is not None else "")
+    return (str(hit["arxiv_id"]), _norm_version(version))
 
 
 def clip_ranked_keys(ranked: list[PaperKey], hits: list[dict]) -> list[PaperKey]:
@@ -46,10 +54,10 @@ def clip_ranked_keys(ranked: list[PaperKey], hits: list[dict]) -> list[PaperKey]
                 continue
             bound = PaperKey(arxiv_id=key.arxiv_id, version=matches[0][1])
         else:
-            pair = (key.arxiv_id, key.version)
+            pair = (key.arxiv_id, _norm_version(key.version))
             if pair not in present:
                 continue
-            bound = PaperKey(arxiv_id=key.arxiv_id, version=key.version)
+            bound = PaperKey(arxiv_id=key.arxiv_id, version=pair[1])
         bound_pair = (bound.arxiv_id, bound.version)
         if bound_pair in seen:
             continue
@@ -84,7 +92,7 @@ def champion_keys(artifacts, passed_steps, plan) -> set[tuple[str, str]]:
         if not arxiv_id:
             continue
         version = head.get("version")
-        champions.add((str(arxiv_id), str(version) if version is not None else ""))
+        champions.add((str(arxiv_id), _norm_version(version)))
     return champions
 
 

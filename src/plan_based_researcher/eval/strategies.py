@@ -143,6 +143,9 @@ def _search_checklist() -> str:
         "Titles and abstracts must match THIS step's task.\n"
         "For each step, output an ordered ranked_keys list of acceptable "
         "(arxiv_id, version) papers for that step; do not admit all hits.\n"
+        "Copy arxiv_id and version verbatim from each hit line "
+        "(e.g. arxiv_id=2305.14314 version=1). Never invent ids from titles "
+        "(e.g. QLoRA-2023 is invalid).\n"
         f"Allowed categories: {categories}. "
         f"Recency: within Policy.recency_years={Policy.recency_years} unless the step is historical.\n"
         "Set plan_inadequate if the task cannot succeed (e.g. no suitable papers for a named topic).\n"
@@ -223,12 +226,22 @@ def _search_deterministic(hits: list[dict], historical: bool) -> tuple[bool, str
     return failed, notes
 
 
+_ABSTRACT_CHARS = 400
+
+
 def _format_hit(hit: dict) -> str:
+    arxiv_id = hit.get("arxiv_id") or ""
+    version = hit.get("version") or ""
     title = hit.get("title") or ""
     year = hit.get("year") or ""
     cats = ", ".join(_categories(hit))
-    abstract = hit.get("abstract") or ""
-    return f"- {title} ({year}) [{cats}]\n  {abstract}"
+    abstract = " ".join(str(hit.get("abstract") or "").split())
+    if len(abstract) > _ABSTRACT_CHARS:
+        abstract = abstract[:_ABSTRACT_CHARS].rstrip() + "…"
+    return (
+        f"- arxiv_id={arxiv_id} version={version}: {title} ({year}) [{cats}]\n"
+        f"  {abstract}"
+    )
 
 
 def _format_search_step(

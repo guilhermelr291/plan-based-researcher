@@ -89,12 +89,17 @@ def _search_sync(query: str, max_results: int) -> list[PaperHit]:
     return hits
 
 
+def _sanitize_pdf_text(text: str) -> str:
+    """Drop NUL bytes; PostgreSQL TEXT / psycopg reject 0x00."""
+    return text.replace("\x00", "")
+
+
 def _load_pdf_text_sync(arxiv_id: str, version: str) -> str:
     loader = ArxivLoader(query=f"{arxiv_id}v{version}", load_max_docs=1)
     docs = loader.load()
     if not docs:
         return ""
-    return "".join(doc.page_content or "" for doc in docs)
+    return _sanitize_pdf_text("".join(doc.page_content or "" for doc in docs))
 
 
 class ArxivPaperAdapter:

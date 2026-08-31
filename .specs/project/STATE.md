@@ -1,7 +1,7 @@
 # State
 
-**Last Updated:** 2026-08-30
-**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001). Quick task 007 (`last_agent` reducer for parallel search) done.
+**Last Updated:** 2026-08-31
+**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001). Quick task 009 (PDF NUL sanitize) done.
 
 ---
 
@@ -138,6 +138,8 @@
 - Remaining-only replan compacting prefix to `passed_steps=range(len(prefix))` is safe only if every index-keyed map (`search_artifacts`, `eval_by_step`, `retrieve_ingest.gap_step_indices`) is remapped or stored by task identity. This feature made retrieve depend on `search_artifacts[str(plan_index)]`; mixed-wave S8a then walks the wrong ranking.
 - Chainlit loads `.env` and, if `DATABASE_URL` is set, instantiates `ChainlitDataLayer` (`asyncpg`). This project's `DATABASE_URL` is the API's psycopg/pgvector URL. The Chainlit process must drop that env var after import; do not add `asyncpg` or share the researcher schema with Chainlit persistence.
 - `langchain-community` 0.4.2 `ArxivAPIWrapper` still calls `Search.results()` and `Result.download_pdf()`. `arxiv` 4.x removed both. Keep `arxiv>=2.2.0,<4` until the wrapper (or a successor package) uses `Client.results`.
+- Search-wave judge `ranked_keys` are clipped to artifact hits. If the prompt omits `arxiv_id`/`version`, the model invents ids (`QLoRA-2023`) and a passing step becomes a retry. Trace `01a058c6-e1a8-71a0-b9e1-44ed67f3f1a6` then exhausted the 120s cap on the second eval.
+- PyMuPDF `get_text()` (LangChain `ArxivLoader`) can emit U+0000. Postgres TEXT / psycopg reject it. Strip NUL in the arXiv adapter after load. Trace `01a058da-c1b4-7633-befb-39b6249739c7`.
 
 ---
 
@@ -152,6 +154,8 @@
 | 005 | Pin `arxiv<4` so LangChain `Search.results()` still exists | 2026-08-30 | — | ✅ Done |
 | 006 | Shared arXiv Client (`page_size=8`, 3s delay) + global request lock | 2026-08-30 | 4fe59c3 | ✅ Done |
 | 007 | `last_agent` last-write reducer so parallel search `Send` can merge | 2026-08-30 | 2673a51 | ✅ Done |
+| 008 | Search-wave judge prompt includes real `arxiv_id`/`version` so clip can keep rankings | 2026-08-31 | — | ✅ Done |
+| 009 | Strip NUL bytes from arXiv PDF text before pgvector upsert | 2026-08-31 | — | ✅ Done |
 
 ---
 
