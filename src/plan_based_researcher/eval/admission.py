@@ -13,6 +13,7 @@ __all__ = [
     "clip_ranked_keys",
     "finalize_wave_rankings",
     "hit_key",
+    "keys_from_hit_indices",
 ]
 
 
@@ -28,6 +29,25 @@ def hit_key(hit: dict) -> tuple[str, str]:
     """(arxiv_id, str(version))."""
     version = hit.get("version")
     return (str(hit["arxiv_id"]), _norm_version(version))
+
+
+def keys_from_hit_indices(indices: list[int], hits: list[dict]) -> list[PaperKey]:
+    """Map 0-based indexes into this step's hits. Drop out-of-range and missing ids."""
+    ranked: list[PaperKey] = []
+    seen: set[tuple[str, str]] = set()
+    for index in indices:
+        if index < 0 or index >= len(hits):
+            continue
+        hit = hits[index]
+        if not isinstance(hit, dict) or not hit.get("arxiv_id"):
+            continue
+        aid, version = hit_key(hit)
+        pair = (aid, version)
+        if pair in seen:
+            continue
+        seen.add(pair)
+        ranked.append(PaperKey(arxiv_id=aid, version=version))
+    return ranked
 
 
 def clip_ranked_keys(ranked: list[PaperKey], hits: list[dict]) -> list[PaperKey]:
@@ -120,7 +140,7 @@ def finalize_wave_rankings(
     For each wave step in plan order:
       get judge SearchStepVerdict for that index (match judgement.verdicts by step_index)
       hits = artifacts[str(i)]['hits'] (empty if missing)
-      ranked = verdict.ranked_keys if verdict else []
+      ranked = keys_from_hit_indices(verdict.ranked_hit_indices, hits) if verdict else []
       clipped = clip_ranked_keys(ranked, hits)
       unique = apply_u1(clipped, assigned)
       if unique: passed=True; assigned.add(head only)  # (head.arxiv_id, head.version)
@@ -141,7 +161,8 @@ def finalize_wave_rankings(
         artifact = artifacts_map.get(str(index))
         raw_hits = artifact.get("hits") if isinstance(artifact, dict) else None
         hits = [hit for hit in raw_hits if isinstance(hit, dict)] if isinstance(raw_hits, list) else []
-        ranked = list(verdict.ranked_keys) if verdict is not None else []
+        indices = list(verdict.ranked_hit_indices) if verdict is not None else []
+        ranked = keys_from_hit_indices(indices, hits)
         unique = apply_u1(clip_ranked_keys(ranked, hits), assigned)
         if unique:
             passed = True

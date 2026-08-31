@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from langchain_openai import ChatOpenAI
 
+from plan_based_researcher.agents.registry import REGISTRY
 from plan_based_researcher.agents.writer import living_and_missing
 from plan_based_researcher.eval.types import (
     EvalResult,
@@ -141,11 +142,9 @@ def _search_checklist() -> str:
     return (
         "Return one independent verdict per search step, plus overall reasoning.\n"
         "Titles and abstracts must match THIS step's task.\n"
-        "For each step, output an ordered ranked_keys list of acceptable "
-        "(arxiv_id, version) papers for that step; do not admit all hits.\n"
-        "Copy arxiv_id and version verbatim from each hit line "
-        "(e.g. arxiv_id=2305.14314 version=1). Never invent ids from titles "
-        "(e.g. QLoRA-2023 is invalid).\n"
+        "For each step, output ranked_hit_indices: an ordered list of 0-based "
+        "indexes into THAT step's hits only (the [n] labels in that step). "
+        "Do not emit arxiv_id strings. Do not reuse another step's indexes.\n"
         f"Allowed categories: {categories}. "
         f"Recency: within Policy.recency_years={Policy.recency_years} unless the step is historical.\n"
         "Set plan_inadequate if the task cannot succeed (e.g. no suitable papers for a named topic).\n"
@@ -229,7 +228,7 @@ def _search_deterministic(hits: list[dict], historical: bool) -> tuple[bool, str
 _ABSTRACT_CHARS = 400
 
 
-def _format_hit(hit: dict) -> str:
+def _format_hit(index: int, hit: dict) -> str:
     arxiv_id = hit.get("arxiv_id") or ""
     version = hit.get("version") or ""
     title = hit.get("title") or ""
@@ -239,7 +238,7 @@ def _format_hit(hit: dict) -> str:
     if len(abstract) > _ABSTRACT_CHARS:
         abstract = abstract[:_ABSTRACT_CHARS].rstrip() + "…"
     return (
-        f"- arxiv_id={arxiv_id} version={version}: {title} ({year}) [{cats}]\n"
+        f"[{index}] arxiv_id={arxiv_id} version={version}: {title} ({year}) [{cats}]\n"
         f"  {abstract}"
     )
 
@@ -252,7 +251,11 @@ def _format_search_step(
     query_used: str = "",
 ) -> str:
     task = str(step.get("task") or "").strip()
-    body = "\n".join(_format_hit(hit) for hit in hits) if hits else "(no hits)"
+    body = (
+        "\n".join(_format_hit(n, hit) for n, hit in enumerate(hits))
+        if hits
+        else "(no hits)"
+    )
     query_line = f"query_used: {query_used}\n" if query_used else ""
     return (
         f"Step {index}\n"
@@ -286,7 +289,9 @@ def _merge_wave_verdicts(
                     passed=False if failed else existing.passed,
                     plan_inadequate=existing.plan_inadequate,
                     feedback=existing.feedback,
-                    ranked_keys=[] if failed else list(existing.ranked_keys),
+                    ranked_hit_indices=(
+                        [] if failed else list(existing.ranked_hit_indices)
+                    ),
                 )
             )
             continue
@@ -297,7 +302,7 @@ def _merge_wave_verdicts(
                 passed=not failed,
                 plan_inadequate=False,
                 feedback=det_notes[index] if failed else "deterministic coverage only",
-                ranked_keys=[],
+                ranked_hit_indices=[],
             )
         )
     return SearchWaveJudgement(
@@ -358,7 +363,7 @@ class SearchEvalStrategy:
         self._judge = None
         if api_key is not None:
             self._judge = ChatOpenAI(
-                model="gpt-5-mini", api_key=api_key
+                model=REGISTRY["planner"].model, api_key=api_key
             ).with_structured_output(SearchWaveJudgement, method="json_schema")
 
     async def evaluate_wave(self, state: GraphState | dict) -> SearchWaveJudgement:
@@ -405,7 +410,7 @@ class SearchEvalStrategy:
                         "system",
                         "You evaluate arXiv search results for a wave of search steps. "
                         "Return one verdict per step (passed, feedback, plan_inadequate, "
-                        "ranked_keys) and reasoning.\n"
+                        "ranked_hit_indices) and reasoning.\n"
                         f"{_search_checklist()}",
                     ),
                     (
@@ -432,7 +437,7 @@ class RetrieveEvalStrategy:
         self._judge = None
         if api_key is not None:
             self._judge = ChatOpenAI(
-                model="gpt-5-mini", api_key=api_key
+                model=REGISTRY["planner"].model, api_key=api_key
             ).with_structured_output(EvalResult, method="json_schema")
 
     async def evaluate(self, state: GraphState | dict) -> EvalResult:
@@ -545,7 +550,7 @@ class WriterEvalStrategy:
         self._judge = None
         if api_key is not None:
             self._judge = ChatOpenAI(
-                model="gpt-5-mini", api_key=api_key
+                model=REGISTRY["planner"].model, api_key=api_key
             ).with_structured_output(EvalResult, method="json_schema")
 
     async def evaluate(self, state: GraphState | dict) -> EvalResult:

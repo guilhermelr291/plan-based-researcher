@@ -1,6 +1,10 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from plan_based_researcher.policy import Policy
+
+HitIndex = Annotated[int, Field(ge=0, le=Policy.search_max_results - 1)]
 
 
 class EvalResult(BaseModel):
@@ -19,7 +23,7 @@ class SearchStepVerdict(BaseModel):
     passed: bool
     plan_inadequate: bool = False
     feedback: str
-    ranked_keys: list[PaperKey] = []
+    ranked_hit_indices: list[HitIndex] = Field(default_factory=list)
 
 
 class SearchWaveJudgement(BaseModel):
