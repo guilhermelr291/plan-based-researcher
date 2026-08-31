@@ -20,4 +20,4 @@ Stop parallel search waves from bursting `export.arxiv.org` by using one shared 
 
 ## Commit
 
-(pending)
+`4fe59c3` — `fix(arxiv): share Client and serialize API requests`

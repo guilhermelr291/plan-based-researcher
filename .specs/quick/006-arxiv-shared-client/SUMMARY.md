@@ -18,4 +18,4 @@ PDF load still uses `ArxivLoader` (its own Client) but waits on the same lock so
 
 ## Commit
 
-(pending)
+`4fe59c3` — `fix(arxiv): share Client and serialize API requests`
