@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-08-30
-**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001). Quick task 004 (Chainlit `DATABASE_URL` / pt-BR markdown) done.
+**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001). Quick task 006 (shared arXiv Client + request lock) done.
 
 ---
 
@@ -131,10 +131,12 @@
 - Parallel `[P]` tasks cannot each `git commit` safely; implement in parallel, then serialize atomic commits on the orchestrator.
 - Sharing one psycopg pool with `AsyncPostgresSaver` (`dict_row`) means app SQL must read rows by column name (or set `tuple_row` on those cursors). Indexing `row[0]` crashes on cache hit and on RAG `fetchall`.
 - On Windows, psycopg async cannot use the default `ProactorEventLoop`; smoke/scripts need `WindowsSelectorEventLoopPolicy` (uvicorn typically already uses a compatible loop).
+- LangChain `ArxivRetriever` / `Search.results()` builds a new `arxiv.Client` per call (`page_size=100`). Parallel `Send("search")` then bursts `export.arxiv.org` and 429s. A shared Client (`page_size=8`, `delay_seconds=3`) plus an adapter lock keeps the graph fan-out and serializes HTTP.
 - LangGraph 1.x compiled graphs only persist keys declared on `GraphState`. A routing field such as `eval_next` must be on the TypedDict or evaluate→replan is dropped and the loop always dispatches.
 - Search-wave eval emits N `eval` SSE frames but `_evaluate_wave` used to keep a single `last_eval` (last verdict). Fixed 2026-08-28: persist `eval_by_step` per index; search/retrieve retry reads that step’s feedback.
 - Remaining-only replan compacting prefix to `passed_steps=range(len(prefix))` is safe only if every index-keyed map (`search_artifacts`, `eval_by_step`, `retrieve_ingest.gap_step_indices`) is remapped or stored by task identity. This feature made retrieve depend on `search_artifacts[str(plan_index)]`; mixed-wave S8a then walks the wrong ranking.
 - Chainlit loads `.env` and, if `DATABASE_URL` is set, instantiates `ChainlitDataLayer` (`asyncpg`). This project's `DATABASE_URL` is the API's psycopg/pgvector URL. The Chainlit process must drop that env var after import; do not add `asyncpg` or share the researcher schema with Chainlit persistence.
+- `langchain-community` 0.4.2 `ArxivAPIWrapper` still calls `Search.results()` and `Result.download_pdf()`. `arxiv` 4.x removed both. Keep `arxiv>=2.2.0,<4` until the wrapper (or a successor package) uses `Client.results`.
 
 ---
 
@@ -146,6 +148,8 @@
 | 002 | Script to draw compiled LangGraph as Mermaid PNG | 2026-08-30 | — | ✅ Done |
 | 003 | Enable LangSmith tracing via `.env` + `load_dotenv()` | 2026-08-30 | — | ✅ Done |
 | 004 | Chainlit crash on `DATABASE_URL`/`asyncpg`; add `chainlit_pt-BR.md` | 2026-08-30 | — | ✅ Done |
+| 005 | Pin `arxiv<4` so LangChain `Search.results()` still exists | 2026-08-30 | — | ✅ Done |
+| 006 | Shared arXiv Client (`page_size=8`, 3s delay) + global request lock | 2026-08-30 | — | ✅ Done |
 
 ---
 
