@@ -19,4 +19,4 @@ Fix `InvalidUpdateError` on `last_agent` when parallel `Send("search")` workers 
 
 ## Commit
 
-`fix(graph): reduce last_agent on parallel search writes`
+`2673a51` — `fix(graph): reduce last_agent on parallel search writes`

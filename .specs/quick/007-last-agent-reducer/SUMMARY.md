@@ -14,4 +14,4 @@ Parallel `Send("search")` workers all return `last_agent: "search"` in the same 
 
 ## Commit
 
-`fix(graph): reduce last_agent on parallel search writes`
+`2673a51` — `fix(graph): reduce last_agent on parallel search writes`

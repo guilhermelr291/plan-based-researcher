@@ -151,7 +151,7 @@
 | 004 | Chainlit crash on `DATABASE_URL`/`asyncpg`; add `chainlit_pt-BR.md` | 2026-08-30 | — | ✅ Done |
 | 005 | Pin `arxiv<4` so LangChain `Search.results()` still exists | 2026-08-30 | — | ✅ Done |
 | 006 | Shared arXiv Client (`page_size=8`, 3s delay) + global request lock | 2026-08-30 | 4fe59c3 | ✅ Done |
-| 007 | `last_agent` last-write reducer so parallel search `Send` can merge | 2026-08-30 | — | ✅ Done |
+| 007 | `last_agent` last-write reducer so parallel search `Send` can merge | 2026-08-30 | 2673a51 | ✅ Done |
 
 ---
 
