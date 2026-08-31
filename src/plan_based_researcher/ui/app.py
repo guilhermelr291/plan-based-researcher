@@ -11,6 +11,10 @@ import httpx
 
 from plan_based_researcher.ui.sse_map import iter_sse_frames, side_panel_texts
 
+# Chainlit loads `.env` on import and treats DATABASE_URL as ChainlitDataLayer
+# (asyncpg). That URL is for the FastAPI/pgvector process, not this UI.
+os.environ.pop("DATABASE_URL", None)
+
 RESEARCH_URL = os.environ.get("RESEARCH_API_URL", "http://127.0.0.1:8001/research")
 
 

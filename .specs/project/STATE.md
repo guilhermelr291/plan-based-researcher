@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-08-30
-**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001).
+**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001). Quick task 004 (Chainlit `DATABASE_URL` / pt-BR markdown) done.
 
 ---
 
@@ -134,6 +134,7 @@
 - LangGraph 1.x compiled graphs only persist keys declared on `GraphState`. A routing field such as `eval_next` must be on the TypedDict or evaluate→replan is dropped and the loop always dispatches.
 - Search-wave eval emits N `eval` SSE frames but `_evaluate_wave` used to keep a single `last_eval` (last verdict). Fixed 2026-08-28: persist `eval_by_step` per index; search/retrieve retry reads that step’s feedback.
 - Remaining-only replan compacting prefix to `passed_steps=range(len(prefix))` is safe only if every index-keyed map (`search_artifacts`, `eval_by_step`, `retrieve_ingest.gap_step_indices`) is remapped or stored by task identity. This feature made retrieve depend on `search_artifacts[str(plan_index)]`; mixed-wave S8a then walks the wrong ranking.
+- Chainlit loads `.env` and, if `DATABASE_URL` is set, instantiates `ChainlitDataLayer` (`asyncpg`). This project's `DATABASE_URL` is the API's psycopg/pgvector URL. The Chainlit process must drop that env var after import; do not add `asyncpg` or share the researcher schema with Chainlit persistence.
 
 ---
 
@@ -143,6 +144,8 @@
 | --- | ----------- | ---- | ------ | ------ |
 | 001 | Install v1 stack (FastAPI, LangGraph, LangChain, OpenAI, Tavily) via uv | 2026-08-25 | — | ✅ Done |
 | 002 | Script to draw compiled LangGraph as Mermaid PNG | 2026-08-30 | — | ✅ Done |
+| 003 | Enable LangSmith tracing via `.env` + `load_dotenv()` | 2026-08-30 | — | ✅ Done |
+| 004 | Chainlit crash on `DATABASE_URL`/`asyncpg`; add `chainlit_pt-BR.md` | 2026-08-30 | — | ✅ Done |
 
 ---
 
