@@ -8,7 +8,7 @@ from typing import Literal
 Role = Literal["gate", "planner", "search", "retrieve", "writer"]
 
 _PLANNER_WRITER_MODEL = "gpt-5.6-luna"
-_MINI_MODEL = "gpt-5-nano"
+_MINI_MODEL = "gpt-5.6-luna"
 
 _PLAN_AGENT_ORDER = ("search", "retrieve", "writer")
 

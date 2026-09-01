@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-08-31
-**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001). Quick task 010 (search rank hit indices) done.
+**Current Work:** Feature `admission-retrieve-per-topic` T1–T15 plus validation fixes (replan remap + hole_tasks). Manual UAT still pending (B-001). Quick task 011 (token chunk splitter 512/50) done.
 
 ---
 
@@ -157,6 +157,7 @@
 | 008 | Search-wave judge prompt includes real `arxiv_id`/`version` so clip can keep rankings | 2026-08-31 | — | ✅ Done |
 | 009 | Strip NUL bytes from arXiv PDF text before pgvector upsert | 2026-08-31 | — | ✅ Done |
 | 010 | Search-wave judge ranks via per-step hit indexes, not invented arXiv ids | 2026-08-31 | — | ✅ Done |
+| 011 | PDF chunking uses tiktoken 512/50 (`cl100k_base`), not characters | 2026-08-31 | — | ✅ Done |
 
 ---
 

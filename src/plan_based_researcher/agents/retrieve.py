@@ -213,7 +213,8 @@ class RetrieveRunner:
             artifacts = state.get("search_artifacts") or {}
             if not isinstance(artifacts, dict):
                 artifacts = {}
-            splitter = RecursiveCharacterTextSplitter(
+            splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+                encoding_name=Policy.chunk_encoding,
                 chunk_size=Policy.chunk_size,
                 chunk_overlap=Policy.chunk_overlap,
             )

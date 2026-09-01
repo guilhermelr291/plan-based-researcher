@@ -24,8 +24,9 @@ class Policy:
     max_replans: int = 1
     max_papers: int = 8
     recency_years: int = 5
-    chunk_size: int = 500
-    chunk_overlap: int = 100
+    chunk_size: int = 512
+    chunk_overlap: int = 50
+    chunk_encoding: str = "cl100k_base"
     hybrid_vector_weight: float = 0.7
     hybrid_lexical_weight: float = 0.3
     search_max_results: int = 8
