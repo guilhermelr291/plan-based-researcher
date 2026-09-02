@@ -16,6 +16,7 @@ import json
 import re
 import shutil
 import sys
+from copy import copy
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urljoin, urlparse
@@ -38,6 +39,8 @@ _ASSET_TAGS = ("img", "object", "embed", "source")
 _UNSAFE_ID = re.compile(r"[^\w.\-]+", re.UNICODE)
 _DISPLAYSTYLE = re.compile(r"\\displaystyle\s*")
 _EQUATION_CLASSES = frozenset({"ltx_equation", "ltx_equationgroup"})
+_ZERO_WIDTH_RULE = re.compile(r"width\s*:\s*0(\.0)?pt", re.I)
+_ACK_HEADING = re.compile(r"^(acknowledgements?|acknowledgments?)$", re.I)
 
 
 def main() -> None:
@@ -75,6 +78,8 @@ def main() -> None:
     ) as client:
         units = _extract_units(soup, client=client, html_url=html_url, units_dir=units_dir)
 
+    _drop_bibliography(soup)
+    _drop_frontmatter(soup)
     convert_root = (
         soup.select_one("article.ltx_document")
         or soup.select_one("div.ltx_page_content")
@@ -90,22 +95,31 @@ def main() -> None:
     chunk_size = Policy.chunk_size
     manifest: list[dict[str, Any]] = []
     for unit in units:
-        token_src = unit["tex"] if unit["kind"] == "equation" else unit["html"]
+        if unit["kind"] == "equation":
+            token_src = unit["tex"]
+        elif unit["kind"] == "table":
+            token_src = unit["markdown"]
+        else:
+            token_src = unit["html"]
         tokens = _count_tokens(encoder, token_src)
         row: dict[str, Any] = {
             "kind": unit["kind"],
             "html_id": unit["html_id"],
             "caption": unit["caption"],
-            "html_path": unit["html_path"],
         }
-        if unit["kind"] == "equation":
+        if unit["kind"] == "table":
+            row["md_path"] = unit["md_path"]
+        elif unit["kind"] == "equation":
             row["tex_path"] = unit["tex_path"]
             row["tex"] = unit["tex"]
+        else:
+            row["html_path"] = unit["html_path"]
         row["assets"] = unit["assets"]
         row["tokens"] = tokens
         row["fits_512"] = tokens <= chunk_size
         manifest.append(row)
-        del unit["html"]
+        unit.pop("html", None)
+        unit.pop("markdown", None)
 
     (units_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
@@ -218,6 +232,9 @@ def _extract_units(
     generated = 0
     units: list[dict[str, Any]] = []
     for _, node in ranked:
+        if _is_layout_only_table(node):
+            node.decompose()
+            continue
         kind = _unit_kind(node)
         raw_id = (node.get("id") or "").strip()
         if raw_id:
@@ -227,12 +244,25 @@ def _extract_units(
             html_id = f"unit-{generated:04d}"
         stem = _unique_stem(f"{kind}-{_safe_id(html_id)}", used_stems)
         caption = _unit_caption(node, kind)
+        unit: dict[str, Any] = {
+            "kind": kind,
+            "html_id": html_id,
+            "caption": caption,
+            "assets": [],
+        }
         if kind == "equation":
-            assets: list[str] = []
             tex = _equation_tex(node)
             rel_tex = f"units/{stem}.tex"
             tex_body = tex if tex.endswith("\n") else tex + "\n"
             (units_dir / f"{stem}.tex").write_text(tex_body, encoding="utf-8")
+            unit["tex_path"] = rel_tex
+            unit["tex"] = tex
+        elif kind == "table":
+            markdown = _table_to_markdown(node)
+            rel_md = f"units/{stem}.md"
+            (units_dir / f"{stem}.md").write_text(markdown, encoding="utf-8")
+            unit["md_path"] = rel_md
+            unit["markdown"] = markdown
         else:
             assets = _download_assets(
                 node,
@@ -241,27 +271,88 @@ def _extract_units(
                 units_dir=units_dir,
                 stem=stem,
             )
-            tex = ""
-            rel_tex = ""
-        snapshot = str(node)
-        rel_html = f"units/{stem}.html"
-        (units_dir / f"{stem}.html").write_text(snapshot, encoding="utf-8")
+            snapshot = str(node)
+            rel_html = f"units/{stem}.html"
+            (units_dir / f"{stem}.html").write_text(snapshot, encoding="utf-8")
+            unit["html_path"] = rel_html
+            unit["html"] = snapshot
+            unit["assets"] = assets
         placeholder = soup.new_tag("p")
         placeholder.string = f"[{kind.upper()}:{html_id}]"
         node.replace_with(placeholder)
-        unit: dict[str, Any] = {
-            "kind": kind,
-            "html_id": html_id,
-            "caption": caption,
-            "html_path": rel_html,
-            "assets": assets,
-            "html": snapshot,
-        }
-        if kind == "equation":
-            unit["tex_path"] = rel_tex
-            unit["tex"] = tex
         units.append(unit)
     return units
+
+
+def _drop_bibliography(root: Any) -> None:
+    """Remove the paper bibliography so it is not converted to markdown.
+
+    In-text cites such as [5, 2] stay in the body. The References list itself
+    is not useful for retrieve: it duplicates metadata and pollutes chunks.
+    """
+    if not hasattr(root, "select"):
+        return
+    for node in list(root.select("section.ltx_bibliography, ul.ltx_biblist")):
+        node.decompose()
+
+
+def _drop_frontmatter(root: Any) -> None:
+    """Remove author/thanks/email blocks and acknowledgement sections.
+
+    Author names already live on the arXiv metadata. Body footnotes outside
+    ``div.ltx_authors`` are kept.
+    """
+    if not hasattr(root, "select"):
+        return
+    for node in list(root.select("div.ltx_authors, section.ltx_acknowledgements")):
+        node.decompose()
+    _drop_acknowledgement_sections(root)
+
+
+def _drop_acknowledgement_sections(root: Any) -> None:
+    from bs4 import Tag
+
+    if not hasattr(root, "find_all"):
+        return
+    heading_names = ["h1", "h2", "h3", "h4", "h5", "h6"]
+    for heading in list(root.find_all(heading_names)):
+        if not isinstance(heading, Tag):
+            continue
+        if not _ACK_HEADING.fullmatch(heading.get_text(" ", strip=True)):
+            continue
+        section = heading.find_parent("section")
+        if (
+            isinstance(section, Tag)
+            and heading is section.find(heading_names)
+        ):
+            section.decompose()
+        else:
+            heading.decompose()
+
+
+def _is_layout_only_table(table: Any) -> bool:
+    """True if this is a LaTeXML spacer tabular, not a real table.
+
+    LaTeX vertical space often becomes a one-cell ``ltx_tabular`` whose only
+    child is a ``span.ltx_rule`` with ``width: 0pt``. Those must not be
+    extracted as table units.
+    """
+    if getattr(table, "name", None) != "table":
+        return False
+    classes = table.get("class") or []
+    if "ltx_tabular" not in classes:
+        return False
+
+    clone = copy(table)
+    for rule in clone.select("span.ltx_rule"):
+        rule.decompose()
+    if clone.get_text(strip=True):
+        return False
+
+    rules = table.select("span.ltx_rule")
+    if not rules:
+        return False
+    return all(_ZERO_WIDTH_RULE.search(rule.get("style") or "") for rule in rules)
 
 
 def _unit_kind(node: Any) -> str:
@@ -335,6 +426,14 @@ def _rewrite_inline_math(root: Any) -> None:
         math.replace_with(NavigableString(f"${tex}$" if tex else ""))
 
 
+def _table_to_markdown(node: Any) -> str:
+    for rule in node.select("span.ltx_rule"):
+        rule.decompose()
+    _rewrite_inline_math(node)
+    markdown = _html_to_markdown(node).strip()
+    return markdown + "\n" if markdown else ""
+
+
 def _html_to_markdown(root: Any) -> str:
     from markdownify import MarkdownConverter
 
@@ -355,6 +454,7 @@ def _html_to_markdown(root: Any) -> str:
         bs4_options="lxml",
         strip=["script", "style", "nav"],
         escape_underscores=False,
+        table_infer_header=True,
     ).convert_soup(root)
 
 
